@@ -57,6 +57,10 @@ conda create -n phylowgs_env python=2.7 -y
 echo "Installing pip in phylowgs_env..."
 conda install -n phylowgs_env pip=9.0.3 -y
 
+# Install GSL via conda
+echo "Installing GSL in phylowgs_env via conda..."
+conda install -n phylowgs_env -c conda-forge gsl -y
+
 # Activate phylowgs_env to install Python 2 dependencies.
 echo "Activating phylowgs_env..."
 conda activate phylowgs_env
@@ -75,6 +79,12 @@ fi
 
 # Compile the C++ components required by PhyloWGS.
 echo "Compiling C++ code for PhyloWGS..."
+# Ensure that gsl-config is available. If not, exit with an error.
+if ! command -v gsl-config >/dev/null 2>&1; then
+   echo "Error: gsl-config not found. Please ensure that GNU Scientific Library (GSL) is installed."
+   echo "On many HPC systems you can load the GSL module with: module add gsl"
+   exit 1
+fi
 cd 1-phylowgs/phylowgs
 g++ -o mh.o -O3 mh.cpp util.cpp `gsl-config --cflags --libs`
 cd ../../
