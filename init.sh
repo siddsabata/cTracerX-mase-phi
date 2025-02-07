@@ -54,8 +54,10 @@ conda run -n markers_env pip install -r 3-markers/requirements.txt
 
 echo "=== Setting up phylowgs_env (Python 2.7) ==="
 conda create -n phylowgs_env python=2.7 -y
+echo "Installing pip in phylowgs_env..."
+conda install -n phylowgs_env pip=9.0.3 -y
 
-# Activate the phylowgs environment to install Python 2 dependencies.
+# Activate phylowgs_env to install Python 2 dependencies.
 echo "Activating phylowgs_env..."
 conda activate phylowgs_env
 
