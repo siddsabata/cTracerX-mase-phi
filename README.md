@@ -119,7 +119,14 @@ The entire pipeline is orchestrated by a SLURM script (which you can rename to `
    bash init.sh
    ```
 
-3. **Submit the Pipeline Job:**
+3. **Set the DATA_DIR:**
+   Ensure that the `DATA_DIR` variable (in your configuration, e.g. in `main.sh` or a separate config file) is updated to point to your data directory.
+   For example:
+   ```bash
+   export DATA_DIR="/path/to/your/data"
+   ```
+
+4. **Submit the Pipeline Job:**
    ```bash
    sbatch main.sh
    ```

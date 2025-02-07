@@ -7,6 +7,7 @@
 #SBATCH --output=logs/mase_phi_%A_%a_%j.out
 #SBATCH --error=logs/mase_phi_%A_%a_%j.err
 #SBATCH --job-name=mase_phi
+#SBATCH --log-file=logs/mase_phi_%A_%a_%j.log
 
 #----------------------------------------------------------------------------
 # Adapted SLURM script using separate conda environments for each step

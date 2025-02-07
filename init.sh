@@ -73,6 +73,17 @@ else
     echo "PhyloWGS repository already cloned."
 fi
 
+# If you have a precompiled PhyloWGS archive (phylowgs.tar.gz), unzip it now.
+if [ -f "phylowgs.tar.gz" ]; then
+    echo "Found phylowgs.tar.gz. Unzipping precompiled PhyloWGS folder..."
+    tar -xzvf phylowgs.tar.gz
+    echo "Directory listing of 1-phylowgs/phylowgs after extraction:"
+    ls -la 1-phylowgs/phylowgs/
+fi
+
+# Note: Ensure that you have cloned the repository from https://github.com/siddsabata/conda-auto-mase-phi.git
+# to obtain the latest pipeline and environment initialization scripts.
+
 echo "Checking for existing compiled PhyloWGS binary..."
 if [ -f "1-phylowgs/phylowgs/mh.o" ]; then
     echo "Compiled binary found, continuing..."
