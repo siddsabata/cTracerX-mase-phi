@@ -26,17 +26,6 @@ set -e
 # Ensure conda commands are available.
 source $(conda info --base)/etc/profile.d/conda.sh
 
-# Purge existing conda environments if they exist
-env_list=("preprocess_env" "aggregation_env" "markers_env" "phylowgs_env")
-for env in "${env_list[@]}"; do
-    if conda env list | grep -q "^$env\s"; then
-         echo "Removing existing environment: $env"
-         conda remove --name "$env" --all -y
-    else
-         echo "Environment $env not found, skipping removal."
-    fi
-done
-
 echo "=== Setting up preprocess_env (Python 3) ==="
 conda create -n preprocess_env python=3 -y
 echo "Installing packages for preprocess_env..."
@@ -61,9 +50,9 @@ conda install -n phylowgs_env pip=9.0.3 -y
 echo "Activating phylowgs_env..."
 conda activate phylowgs_env
 
-echo "Installing Python 2 dependencies for PhyloWGS..."
-pip install numpy==1.16.6 scipy==1.2.3  # (Adjust versions as needed for Python 2.7)
-pip install ete2==2.3.10
+# Install Python 2 dependencies from requirements.txt
+echo "Installing Python 2 dependencies for PhyloWGS from requirements.txt..."
+pip install -r 1-phylowgs/requirements.txt
 
 # Clone the PhyloWGS repository if it doesn't exist yet.
 if [ ! -d "1-phylowgs/phylowgs" ]; then
@@ -73,23 +62,10 @@ else
     echo "PhyloWGS repository already cloned."
 fi
 
-# If you have a precompiled PhyloWGS archive (phylowgs.tar.gz), unzip it now.
-if [ -f "phylowgs.tar.gz" ]; then
-    echo "Found phylowgs.tar.gz. Unzipping precompiled PhyloWGS folder..."
-    tar -xzvf phylowgs.tar.gz
-    echo "Directory listing of 1-phylowgs/phylowgs after extraction:"
-    ls -la 1-phylowgs/phylowgs/
-fi
-
-# Note: Ensure that you have cloned the repository from https://github.com/siddsabata/conda-auto-mase-phi.git
-# to obtain the latest pipeline and environment initialization scripts.
-
-echo "Checking for existing compiled PhyloWGS binary..."
-if [ -f "1-phylowgs/phylowgs/mh.o" ]; then
-    echo "Compiled binary found, continuing..."
-else
-    echo "Error: Compiled binary 'mh.o' not found in 1-phylowgs/phylowgs! Exiting."
-    exit 1
-fi
+# Compile PhyloWGS C++ code
+echo "Compiling PhyloWGS C++ code..."
+cd 1-phylowgs/phylowgs
+g++ -o mh.o -O3 mh.cpp util.cpp `gsl-config --cflags --libs`
+cd ../../
 
 echo "Initialization complete. All conda environments have been set up." 
