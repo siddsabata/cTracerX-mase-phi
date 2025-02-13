@@ -10,5 +10,6 @@ dependencies:
   - ete3
   - matplotlib
   - seaborn
-  - pip 
+  - pip
   - graphviz
+  - python-graphviz
