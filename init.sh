@@ -39,33 +39,18 @@ chmod +x 2-aggregation/run_aggregation.sh
 chmod +x 3-markers/run_markers.sh
 echo "Execute permissions set successfully."
 
-echo "=== Setting up preprocess_env (Python 3) ==="
-conda create -n preprocess_env python=3 -y
-echo "Installing packages for preprocess_env..."
-conda run -n preprocess_env pip install -r 0-preprocess/requirements.txt
+# Create conda environments from yml files
+echo "=== Creating preprocess_env ==="
+conda env create -f 0-preprocess/environment.yml
 
-echo "=== Setting up aggregation_env (Python 3) ==="
-conda create -n aggregation_env python=3 -y
-echo "Installing packages for aggregation_env..."
-conda run -n aggregation_env pip install -r 2-aggregation/requirements.txt
+echo "=== Creating phylowgs_env ==="
+conda env create -f 1-phylowgs/environment.yml
 
-echo "=== Setting up markers_env (Python 3) ==="
-conda create -n markers_env python=3 -y
-echo "Installing packages for markers_env..."
-conda run -n markers_env pip install -r 3-markers/requirements.txt
+echo "=== Creating aggregation_env ==="
+conda env create -f 2-aggregation/environment.yml
 
-echo "=== Setting up phylowgs_env (Python 2.7) ==="
-conda create -n phylowgs_env python=2.7 -y
-echo "Installing pip in phylowgs_env..."
-conda install -n phylowgs_env pip=9.0.3 -y
-
-# Activate phylowgs_env to install Python 2 dependencies.
-echo "Activating phylowgs_env..."
-conda activate phylowgs_env
-
-# Install Python 2 dependencies from requirements.txt
-echo "Installing Python 2 dependencies for PhyloWGS from requirements.txt..."
-pip install -r 1-phylowgs/requirements.txt
+echo "=== Creating markers_env ==="
+conda env create -f 3-markers/environment.yml
 
 # Clone the PhyloWGS repository if it doesn't exist yet.
 if [ ! -d "1-phylowgs/phylowgs" ]; then
