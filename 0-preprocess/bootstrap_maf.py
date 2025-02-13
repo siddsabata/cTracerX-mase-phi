@@ -117,32 +117,31 @@ def bootstrap_maf(maf_df, num_bootstraps):
     
     return df_bootstrap
 
-def write_phylowgs_input(bootstrap_df, output_path):
+def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     """
-    Converts bootstrapped MAF data to phyloWGS format
+    Converts bootstrapped MAF data to phyloWGS format for a specific bootstrap iteration
     """
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
-    # Write non-bootstrapped data first
-    phylowgs_format = []
+    # Create phyloWGS input for this bootstrap iteration
+    boot_phylowgs = []
     for idx, row in bootstrap_df.iterrows():
-        if pd.isna(row["Total_Depth_st"]) or pd.isna(row["Variant_Frequencies_st"]):
-            continue
-            
         gene = row["Hugo_Symbol"] if isinstance(row["Hugo_Symbol"], str) else f"{row['Chromosome']}_{row['Start_Position']}"
         
         # Get tissue values
-        tissue_depth = int(row["Total_Depth_st"])
-        tissue_vaf = row["Variant_Frequencies_st"]
+        tissue_depth = int(row[f"Total_Depth_st_bootstrap_{bootstrap_num}"])
+        tissue_vaf = row[f"Variant_Frequencies_st_bootstrap_{bootstrap_num}"]
         tissue_ref = int(np.round(tissue_depth * (1 - tissue_vaf)))
         
-        # Check if blood data exists
-        has_blood = "Total_Depth_cf" in row and "Variant_Frequencies_cf" in row and not pd.isna(row["Total_Depth_cf"])
+        # Check if blood data exists for this bootstrap
+        has_blood = (f"Total_Depth_cf_bootstrap_{bootstrap_num}" in bootstrap_df.columns and 
+                    f"Variant_Frequencies_cf_bootstrap_{bootstrap_num}" in bootstrap_df.columns and 
+                    not pd.isna(row[f"Total_Depth_cf_bootstrap_{bootstrap_num}"]))
         
         if has_blood:
             # Get blood values
-            blood_depth = int(row["Total_Depth_cf"])
-            blood_vaf = row["Variant_Frequencies_cf"]
+            blood_depth = int(row[f"Total_Depth_cf_bootstrap_{bootstrap_num}"])
+            blood_vaf = row[f"Variant_Frequencies_cf_bootstrap_{bootstrap_num}"]
             blood_ref = int(np.round(blood_depth * (1 - blood_vaf)))
             
             # Combine blood and tissue values with blood first
@@ -153,7 +152,7 @@ def write_phylowgs_input(bootstrap_df, output_path):
             ref_count = str(tissue_ref)
             depth = str(tissue_depth)
         
-        phylowgs_format.append({
+        boot_phylowgs.append({
             'id': f's{idx}',
             'gene': gene,
             'a': ref_count,
@@ -162,81 +161,19 @@ def write_phylowgs_input(bootstrap_df, output_path):
             'mu_v': 0.499
         })
     
-    # Save non-bootstrapped data
-    df_phylowgs = pd.DataFrame(phylowgs_format)
-    df_phylowgs.to_csv(os.path.join(output_path, 'ssm_data_original.txt'), 
-                       sep='\t', index=False)
-    
-    # Process bootstrapped data
-    bootstrap_cols = [col for col in bootstrap_df.columns 
-                     if col.startswith('Total_Depth_st_bootstrap_')]
-    bootstrap_nums = [int(col.split('_')[-1]) for col in bootstrap_cols]
-    num_bootstraps = max(bootstrap_nums)
-    
-    # Create phyloWGS input for each bootstrap iteration
-    for i in range(1, num_bootstraps + 1):
-        tissue_depth_col = f"Total_Depth_st_bootstrap_{i}"
-        tissue_vaf_col = f"Variant_Frequencies_st_bootstrap_{i}"
-        blood_depth_col = f"Total_Depth_cf_bootstrap_{i}"
-        blood_vaf_col = f"Variant_Frequencies_cf_bootstrap_{i}"
-        
-        if tissue_depth_col not in bootstrap_df.columns or tissue_vaf_col not in bootstrap_df.columns:
-            continue
-            
-        boot_phylowgs = []
-        for idx, row in bootstrap_df.iterrows():
-            gene = row["Hugo_Symbol"] if isinstance(row["Hugo_Symbol"], str) else f"{row['Chromosome']}_{row['Start_Position']}"
-            
-            # Get tissue values
-            tissue_depth = int(row[tissue_depth_col])
-            tissue_vaf = row[tissue_vaf_col]
-            tissue_ref = int(np.round(tissue_depth * (1 - tissue_vaf)))
-            
-            # Check if blood data exists for this bootstrap
-            has_blood = (blood_depth_col in bootstrap_df.columns and 
-                        blood_vaf_col in bootstrap_df.columns and 
-                        not pd.isna(row[blood_depth_col]))
-            
-            if has_blood:
-                # Get blood values
-                blood_depth = int(row[blood_depth_col])
-                blood_vaf = row[blood_vaf_col]
-                blood_ref = int(np.round(blood_depth * (1 - blood_vaf)))
-                
-                # Combine blood and tissue values with blood first
-                ref_count = f"{blood_ref},{tissue_ref}"
-                depth = f"{blood_depth},{tissue_depth}"
-            else:
-                # Use only tissue values
-                ref_count = str(tissue_ref)
-                depth = str(tissue_depth)
-            
-            boot_phylowgs.append({
-                'id': f's{idx}',
-                'gene': gene,
-                'a': ref_count,
-                'd': depth,
-                'mu_r': 0.999,
-                'mu_v': 0.499
-            })
-        
-        # Create directory for this bootstrap iteration and save file
-        boot_dir = os.path.join(output_path, f'bootstrap{i}')
-        os.makedirs(boot_dir, exist_ok=True)
-        df_boot = pd.DataFrame(boot_phylowgs)
-        df_boot.to_csv(os.path.join(boot_dir, f'ssm_data_bootstrap{i}.txt'), 
-                      sep='\t', index=False)
+    # Save phyloWGS input for this bootstrap iteration
+    df_boot = pd.DataFrame(boot_phylowgs)
+    df_boot.to_csv(os.path.join(output_dir, f'ssm_data_bootstrap{bootstrap_num}.txt'), 
+                  sep='\t', index=False)
 
 def main():
-    parser = argparse.ArgumentParser(description='Bootstrap MAF data and create phyloWGS input')
+    parser = argparse.ArgumentParser(description='Bootstrap MAF data')
     parser.add_argument('-i', '--input', required=True,
                        help='Input MAF CSV file (output from maf_agg.py)')
     parser.add_argument('-o', '--output', required=True,
                        help='Output directory for bootstrapped files')
     parser.add_argument('-n', '--num_bootstraps', type=int, default=100,
                        help='Number of bootstrap iterations')
-    parser.add_argument('-p', '--phylowgs', action='store_true',
-                       help='Generate phyloWGS input files')
     args = parser.parse_args()
 
     # Read merged MAF data
@@ -248,10 +185,14 @@ def main():
     # Save bootstrapped data
     os.makedirs(args.output, exist_ok=True)
     bootstrap_df.to_csv(os.path.join(args.output, 'bootstrapped_maf.csv'), index=False)
-    
-    # Generate phyloWGS input if requested
-    if args.phylowgs:
-        write_phylowgs_input(bootstrap_df, args.output)
+
+    # Create bootstrap SSM files
+    for i in range(1, args.num_bootstraps + 1):
+        boot_dir = os.path.join(args.output, f'bootstrap{i}')
+        os.makedirs(boot_dir, exist_ok=True)
+        
+        # Create SSM file for this bootstrap
+        write_bootstrap_ssm(bootstrap_df, i, boot_dir)
 
 if __name__ == "__main__":
     main() 

@@ -81,6 +81,11 @@ run_step() {
         preprocess)
             conda activate preprocess_env
             ./0-preprocess/run_preprocess.sh "${patient_id}" "${NUM_BOOTSTRAPS}"
+            # Check for empty.txt after preprocess step
+            if [ -f "${patient_dir}/common/empty.txt" ]; then
+                echo "[$(date)] No common mutations found for patient ${patient_id}. Stopping processing."
+                exit 0
+            fi
             ;;
         phylowgs)
             conda activate phylowgs_env

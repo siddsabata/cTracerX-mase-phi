@@ -85,6 +85,12 @@ echo "  BC MAF: ${bc_maf}"
 echo "Running MAF aggregation..."
 python "$(dirname $0)/maf_agg.py" --cf_maf "$cf_maf" --st_maf "$st_maf" --bc_maf "$bc_maf" --output_dir "$output_csv" --method "inner"
 
+# Check for empty.txt flag
+if [ -f "${common_dir}/empty.txt" ]; then
+    echo "No common mutations found for patient ${patient_id}. Skipping bootstrap step."
+    exit 0
+fi
+
 if [ ! -f "$output_csv" ]; then
     echo "Error: MAF aggregation did not produce the expected output: ${output_csv}"
     exit 1
