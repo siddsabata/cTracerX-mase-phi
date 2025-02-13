@@ -18,6 +18,9 @@
 #   executing this script.
 # --------------------------------------------------
 
+# Get the directory containing this script
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Check for patient directory argument
 if [ -z "$1" ]; then
     echo "Usage: $0 <patient_directory> [num_bootstraps]"
@@ -63,18 +66,22 @@ fi
 mkdir -p "${common_dir}"
 
 # Get MAF files
-cf_maf="$patient_dir/mafs/MAFconversion_CF-*.maf.v4.9.oncoKB.txt"
-st_maf="$patient_dir/mafs/MAFconversion_ST-*.maf.v4.9.oncoKB.txt"
-bc_maf="$patient_dir/mafs/MAFconversion_BC-*.maf.v4.9.oncoKB.txt"
+cf_maf=$(find "${mafs_dir}" -name "MAFconversion_CF*" -type f)
+st_maf=$(find "${mafs_dir}" -name "MAFconversion_ST*" -type f)
+bc_maf=$(find "${mafs_dir}" -name "MAFconversion_BC*" -type f)
 
-# Get actual file paths (in case of wildcards)
-cf_maf=$(ls $cf_maf)
-st_maf=$(ls $st_maf)
-bc_maf=$(ls $bc_maf)
+# Check if files were found
+if [ -z "$cf_maf" ] || [ -z "$st_maf" ] || [ -z "$bc_maf" ]; then
+    echo "Error: Could not find all required MAF files"
+    echo "CF MAF: $cf_maf"
+    echo "ST MAF: $st_maf"
+    echo "BC MAF: $bc_maf"
+    exit 1
+fi
 
 # Run MAF aggregation
 echo "Running MAF aggregation..."
-python "$script_dir/maf_agg.py" \
+python "${script_dir}/maf_agg.py" \
     -c "$cf_maf" \
     -s "$st_maf" \
     -b "$bc_maf" \
