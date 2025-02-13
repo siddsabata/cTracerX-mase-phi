@@ -7,7 +7,6 @@
 #SBATCH --output=logs/mase_phi_%A_%a_%j.out
 #SBATCH --error=logs/mase_phi_%A_%a_%j.err
 #SBATCH --job-name=mase_phi
-#SBATCH --log-file=logs/mase_phi_%A_%a_%j.log
 
 #----------------------------------------------------------------------------
 # Adapted SLURM script using separate conda environments for each step
@@ -35,22 +34,40 @@
 #   sbatch process_patients.sh
 #----------------------------------------------------------------------------
 
+# Activate conda base environment first
+source ~/miniconda3/bin/activate
+
 # Base configuration
 export DATA_DIR="${DATA_DIR:-/path/to/data}"
 export NUM_BOOTSTRAPS=5
 export NUM_CHAINS=5
 export READ_DEPTH=1500
 
+# Create logs directory before any operations
+mkdir -p logs || exit 1
+
 LOG_FILE="logs/processing_log.txt"
 STEPS=("preprocess" "phylowgs" "aggregation" "markers")
 
-# Create logs directory if it doesn't exist
-mkdir -p logs
-
 # Get patient ID from array index (assumes that patient folders exist under DATA_DIR)
+if [ ! -d "${DATA_DIR}" ]; then
+    echo "Error: DATA_DIR (${DATA_DIR}) does not exist" | tee -a "$LOG_FILE"
+    exit 1
+fi
+
 patients=($(ls ${DATA_DIR} | grep -v "\."))
+if [ ${#patients[@]} -eq 0 ]; then
+    echo "Error: No patient directories found in ${DATA_DIR}" | tee -a "$LOG_FILE"
+    exit 1
+fi
+
 patient_id=${patients[$SLURM_ARRAY_TASK_ID]}
 patient_dir="${DATA_DIR}/${patient_id}"
+
+echo "DEBUG: Script started on $(hostname) at $(date)"
+echo "DEBUG: SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID}"
+echo "DEBUG: patient_id=${patient_id}"
+echo "DEBUG: Working directory: $(pwd)"
 
 echo "[$(date)] Starting processing for patient $patient_id" | tee -a "$LOG_FILE"
 
@@ -115,7 +132,6 @@ run_step() {
     esac
 
     # Activate the conda environment for the step (each step has its own environment)
-    source ~/miniconda3/bin/activate
     conda activate ${STEP_ENV}
 
     # Execute the step's run script along with its arguments
