@@ -83,7 +83,7 @@ echo "  BC MAF: ${bc_maf}"
 
 # Run MAF aggregation, creating the output CSV file
 echo "Running MAF aggregation..."
-python maf_agg.py --cf_maf "$cf_maf" --st_maf "$st_maf" --bc_maf "$bc_maf" --output_dir "$output_csv" --method "inner"
+python "$(dirname $0)/maf_agg.py" --cf_maf "$cf_maf" --st_maf "$st_maf" --bc_maf "$bc_maf" --output_dir "$output_csv" --method "inner"
 
 if [ ! -f "$output_csv" ]; then
     echo "Error: MAF aggregation did not produce the expected output: ${output_csv}"
@@ -92,6 +92,6 @@ fi
 
 # Run bootstrap processing with PhyloWGS output
 echo "Running bootstrap processing with ${num_bootstraps} iterations..."
-python bootstrap_maf.py --input "$output_csv" --output "${common_dir}" --num_bootstraps "$num_bootstraps" --phylowgs
+python "$(dirname $0)/bootstrap_maf.py" --input "$output_csv" --output "${common_dir}" --num_bootstraps "$num_bootstraps" --phylowgs
 
 echo "Preprocessing for patient ${patient_id} completed successfully." 

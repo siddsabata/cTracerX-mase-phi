@@ -89,7 +89,7 @@ for bootstrap in $(seq 1 "$num_bootstraps"); do
     
     # Run PhyloWGS multievolve.py with the specified parameters
     echo "Running multievolve.py for bootstrap ${bootstrap}..."
-    python2 multievolve.py \
+    python2 "$(dirname $0)/phylowgs/multievolve.py" \
         --num-chains "${num_chains}" \
         --ssms "${SSM_FILE}" \
         --cnvs "${CNV_FILE}" \

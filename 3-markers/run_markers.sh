@@ -41,6 +41,6 @@ echo "Read depth: ${read_depth}"
 echo "---------------------------------------"
 
 # Run the marker selection Python script with the provided parameters
-python run_data.py "${patient_id}" --bootstrap-list ${bootstrap_list} --read-depth "${read_depth}" --base-dir "${DATA_DIR}"
+python "$(dirname $0)/run_data.py" "${patient_id}" --bootstrap-list ${bootstrap_list} --read-depth "${read_depth}" --base-dir "${DATA_DIR}"
 
 echo "Marker selection completed successfully for patient ${patient_id}." 

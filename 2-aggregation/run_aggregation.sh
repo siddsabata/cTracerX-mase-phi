@@ -49,7 +49,7 @@ echo "Patient data directory: ${DATA_ROOT}/${patient_id}"
 echo "---------------------------------------"
 
 # Run the aggregation Python script with specified parameters
-python process_tracerx_bootstrap.py "${patient_id}" \
+python "$(dirname $0)/process_tracerx_bootstrap.py" "${patient_id}" \
     --bootstrap-list ${bootstrap_list} \
     --num-blood 0 \
     --num-tissue 5 \
