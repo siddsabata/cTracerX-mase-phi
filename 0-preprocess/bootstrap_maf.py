@@ -119,8 +119,10 @@ def bootstrap_maf(maf_df, num_bootstraps):
 
 def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     """
-    Converts bootstrapped MAF data to phyloWGS format for a specific bootstrap iteration
+    Write SSM data for a specific bootstrap iteration
     """
+    # Create SSM file
+    ssm_file = os.path.join(output_dir, f'ssm_data_bootstrap{bootstrap_num}.txt')
     os.makedirs(output_dir, exist_ok=True)
     
     # Create phyloWGS input for this bootstrap iteration
@@ -163,8 +165,13 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     
     # Save phyloWGS input for this bootstrap iteration
     df_boot = pd.DataFrame(boot_phylowgs)
-    df_boot.to_csv(os.path.join(output_dir, f'ssm_data_bootstrap{bootstrap_num}.txt'), 
-                  sep='\t', index=False)
+    df_boot.to_csv(ssm_file, sep='\t', index=False)
+    
+    # Create empty CNV file
+    cnv_file = os.path.join(output_dir, f'cnv_data_bootstrap{bootstrap_num}.txt')
+    with open(cnv_file, 'w') as f:
+        # CNV file header
+        f.write('cnv_id\tchrom\tstart\tend\tmajor_cn\tminor_cn\tcellular_prevalence\tnum_cells\tnum_cells_with_mutation\n')
 
 def main():
     parser = argparse.ArgumentParser(description='Bootstrap MAF data')
@@ -186,12 +193,12 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     bootstrap_df.to_csv(os.path.join(args.output, 'bootstrapped_maf.csv'), index=False)
 
-    # Create bootstrap SSM files
+    # Create bootstrap SSM and CNV files
     for i in range(1, args.num_bootstraps + 1):
         boot_dir = os.path.join(args.output, f'bootstrap{i}')
         os.makedirs(boot_dir, exist_ok=True)
         
-        # Create SSM file for this bootstrap
+        # Create SSM and CNV files for this bootstrap
         write_bootstrap_ssm(bootstrap_df, i, boot_dir)
 
 if __name__ == "__main__":

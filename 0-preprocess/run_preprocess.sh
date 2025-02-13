@@ -98,6 +98,6 @@ fi
 
 # Run bootstrap processing with PhyloWGS output
 echo "Running bootstrap processing with ${num_bootstraps} iterations..."
-python "$(dirname $0)/bootstrap_maf.py" --input "$output_csv" --output "${common_dir}" --num_bootstraps "$num_bootstraps" --phylowgs
+python "$(dirname $0)/bootstrap_maf.py" --input "$output_csv" --output "${common_dir}" --num_bootstraps "$num_bootstraps"
 
 echo "Preprocessing for patient ${patient_id} completed successfully." 
