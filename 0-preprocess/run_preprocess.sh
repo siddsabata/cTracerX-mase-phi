@@ -62,28 +62,24 @@ fi
 # Create common directory if it doesn't exist
 mkdir -p "${common_dir}"
 
-# Identify required MAF files
-echo "Searching for required MAF files..."
-cf_maf=$(find "${mafs_dir}" -name "*CF-*.maf.*" -type f)
-st_maf=$(find "${mafs_dir}" -name "*ST-*.maf.*" -type f)
-bc_maf=$(find "${mafs_dir}" -name "*BC-*.maf.*" -type f)
+# Get MAF files
+cf_maf="$patient_dir/mafs/MAFconversion_CF-*.maf.v4.9.oncoKB.txt"
+st_maf="$patient_dir/mafs/MAFconversion_ST-*.maf.v4.9.oncoKB.txt"
+bc_maf="$patient_dir/mafs/MAFconversion_BC-*.maf.v4.9.oncoKB.txt"
 
-if [ -z "$cf_maf" ] || [ -z "$st_maf" ] || [ -z "$bc_maf" ]; then
-    echo "Error: Missing one or more required MAF files in ${mafs_dir}"
-    echo "CF MAF: ${cf_maf:-not found}"
-    echo "ST MAF: ${st_maf:-not found}"
-    echo "BC MAF: ${bc_maf:-not found}"
-    exit 1
-fi
+# Get actual file paths (in case of wildcards)
+cf_maf=$(ls $cf_maf)
+st_maf=$(ls $st_maf)
+bc_maf=$(ls $bc_maf)
 
-echo "Found MAF files:"
-echo "  CF MAF: ${cf_maf}"
-echo "  ST MAF: ${st_maf}"
-echo "  BC MAF: ${bc_maf}"
-
-# Run MAF aggregation, creating the output CSV file
+# Run MAF aggregation
 echo "Running MAF aggregation..."
-python "$(dirname $0)/maf_agg.py" --cf_maf "$cf_maf" --st_maf "$st_maf" --bc_maf "$bc_maf" --output_dir "$output_csv" --method "inner"
+python "$script_dir/maf_agg.py" \
+    -c "$cf_maf" \
+    -s "$st_maf" \
+    -b "$bc_maf" \
+    -o "$common_dir/patient_${patient_id}.csv" \
+    -m "inner"
 
 # Check for empty.txt flag
 if [ -f "${common_dir}/empty.txt" ]; then

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import argparse
 import os
+import sys
 
 """
 The purpose of this script is to aggregate meaningful mutation data from multiple MAF files. 
@@ -67,7 +68,7 @@ def merge_mafs(cf, st, bc, method="inner"):
 
 def write_phylowgs_input(df, output_dir):
     """
-    Converts MAF data to phyloWGS format and writes the original SSM file
+    Converts MAF data to phyloWGS format and writes SSM and CNV files
     """
     phylowgs_format = []
     for idx, row in df.iterrows():
@@ -108,6 +109,10 @@ def write_phylowgs_input(df, output_dir):
     df_phylowgs.to_csv(os.path.join(output_dir, 'ssm_data_original.txt'), 
                        sep='\t', index=False)
 
+    # Create empty CNV file (completely empty, no header)
+    cnv_file = os.path.join(output_dir, 'cnv_data_original.txt')
+    open(cnv_file, 'w').close()  # Creates an empty file
+
 def main():
     # parse arguments 
     parser = argparse.ArgumentParser()
@@ -120,9 +125,13 @@ def main():
     args = parser.parse_args()
 
     # read in mafs 
-    cf = pd.read_csv(args.cf_maf, sep="\t")
-    st = pd.read_csv(args.st_maf, sep="\t")
-    bc = pd.read_csv(args.bc_maf, sep="\t")
+    try:
+        cf = pd.read_csv(args.cf_maf.strip(), sep="\t")
+        st = pd.read_csv(args.st_maf.strip(), sep="\t")
+        bc = pd.read_csv(args.bc_maf.strip(), sep="\t")
+    except FileNotFoundError as e:
+        print(f"Error reading MAF file: {e}")
+        sys.exit(1)
 
     # merge mafs 
     maf_agg = merge_mafs(cf, st, bc, method=args.method)
@@ -135,10 +144,13 @@ def main():
             f.write("No common mutations found between samples.\n")
         return
 
+    # Create output directory if it doesn't exist
+    os.makedirs(os.path.dirname(args.output_dir), exist_ok=True)
+
     # save to csv 
     maf_agg.to_csv(args.output_dir, index=False)
     
-    # Write original SSM file
+    # Write original SSM and CNV files
     output_dir = os.path.dirname(args.output_dir)
     write_phylowgs_input(maf_agg, output_dir)
 

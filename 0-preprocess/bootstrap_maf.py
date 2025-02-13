@@ -167,11 +167,9 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     df_boot = pd.DataFrame(boot_phylowgs)
     df_boot.to_csv(ssm_file, sep='\t', index=False)
     
-    # Create empty CNV file
+    # Create empty CNV file (completely empty)
     cnv_file = os.path.join(output_dir, f'cnv_data_bootstrap{bootstrap_num}.txt')
-    with open(cnv_file, 'w') as f:
-        # CNV file header
-        f.write('cnv_id\tchrom\tstart\tend\tmajor_cn\tminor_cn\tcellular_prevalence\tnum_cells\tnum_cells_with_mutation\n')
+    open(cnv_file, 'w').close()  # Creates an empty file
 
 def main():
     parser = argparse.ArgumentParser(description='Bootstrap MAF data')
