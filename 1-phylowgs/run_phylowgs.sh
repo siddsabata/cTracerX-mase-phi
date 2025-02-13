@@ -36,7 +36,7 @@ patient_id=$(basename "$patient_dir")
 
 # Define the base directory for your data.
 # Update DATA_ROOT if your data is located somewhere else.
-DATA_ROOT="$(pwd)/data"
+DATA_ROOT="${DATA_DIR}"
 patient_data_dir="${DATA_ROOT}/${patient_dir}"
 common_dir="${patient_data_dir}/common"
 

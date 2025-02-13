@@ -26,6 +26,19 @@ set -e
 # Ensure conda commands are available.
 source $(conda info --base)/etc/profile.d/conda.sh
 
+# Create logs directory (needed for SLURM job output)
+echo "Creating logs directory..."
+mkdir -p logs
+echo "Logs directory created successfully."
+
+# Make all run scripts executable
+echo "Setting execute permissions for run scripts..."
+chmod +x 0-preprocess/run_preprocess.sh
+chmod +x 1-phylowgs/run_phylowgs.sh
+chmod +x 2-aggregation/run_aggregation.sh
+chmod +x 3-markers/run_markers.sh
+echo "Execute permissions set successfully."
+
 echo "=== Setting up preprocess_env (Python 3) ==="
 conda create -n preprocess_env python=3 -y
 echo "Installing packages for preprocess_env..."

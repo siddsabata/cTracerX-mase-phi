@@ -40,7 +40,7 @@ fi
 
 # Define the base directory for your data.
 # Update DATA_ROOT if necessary.
-DATA_ROOT="$(pwd)/data"
+DATA_ROOT="${DATA_DIR}"
 
 echo "---------------------------------------"
 echo "Aggregating data for patient: ${patient_id}"
