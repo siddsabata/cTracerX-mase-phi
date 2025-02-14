@@ -39,10 +39,9 @@ RUN_SCRIPT="${SCRIPT_DIR}/run_data.py"
 # Create a list of bootstrap numbers from 1 to num_bootstraps
 bootstrap_list=$(seq -s ' ' 1 $num_bootstraps)
 
-# Run the Python script
+# Run the Python script with correct arguments
 python "$RUN_SCRIPT" "${patient_id}" \
     --bootstrap-list $bootstrap_list \
-    --read-depth $read_depth \
-    --base-dir "${DATA_DIR}"
+    --read-depth $read_depth
 
 echo "Marker selection completed successfully for patient ${patient_id}." 
