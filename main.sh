@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=pool1           
-#SBATCH --array=0-2%50             
+#SBATCH --array=0-3%50             
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=16G
 #SBATCH --time=24:00:00
@@ -24,7 +24,7 @@ source ~/miniconda3/bin/activate || {
 }
 
 # Base configuration
-export DATA_DIR="/home/ssabata/path/to/your/data"  # <-- Replace with your actual data path
+export DATA_DIR="/home/ssabata/patient_data/mafs_test"  # <-- Replace with your actual data path
 export NUM_BOOTSTRAPS=5
 export NUM_CHAINS=5
 export READ_DEPTH=1500
