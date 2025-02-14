@@ -9,6 +9,8 @@ from pathlib import Path
 import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
+import sys
 
 def parse_args():
     """Parse command line arguments."""
@@ -26,19 +28,30 @@ def parse_args():
     return parser.parse_args()
 
 def main():
-    # Parse command line arguments
     args = parse_args()
-    patient_num = args.patient
+    patient = args.patient
+    bootstrap_list = args.bootstrap_list
     read_depth = args.read_depth
-    
-    # Setup paths
-    base_dir = Path('/data')  # Using Docker volume mount path
-    method = 'phylowgs'
-    type = 'common'
+
+    # Set up paths using DATA_DIR environment variable
+    data_dir = os.environ.get('DATA_DIR', '/data')  # fallback to /data if not set
+    patient_dir = os.path.join(data_dir, patient)
+    common_dir = os.path.join(patient_dir, 'common')
+    aggregation_dir = os.path.join(common_dir, 'aggregation')
+
+    # Define file paths
+    tree_distribution_file = os.path.join(aggregation_dir, 'phylowgs_bootstrap_aggregation.pkl')
+    csv_file = os.path.join(common_dir, f'patient_{patient}.csv')
+
+    # Verify files exist
+    if not os.path.exists(tree_distribution_file):
+        print(f"Error: Tree distribution file not found at {tree_distribution_file}")
+        sys.exit(1)
+    if not os.path.exists(csv_file):
+        print(f"Error: CSV file not found at {csv_file}")
+        sys.exit(1)
 
     # Load tree distribution from aggregation directory
-    tree_distribution_file = base_dir / f'{patient_num}/common/aggregation/{method}_bootstrap_aggregation.pkl'
-
     with open(tree_distribution_file, 'rb') as f:
         tree_distribution = pickle.load(f)
 
@@ -46,7 +59,6 @@ def main():
     gene2idx = {}
 
     # Read from CSV
-    csv_file = base_dir / f"{patient_num}/common/patient_{patient_num}.csv"
     inter = pd.read_csv(csv_file)  # Remove index_col=0
 
     # Filter allele frequencies
@@ -98,13 +110,13 @@ def main():
         clonal_freq_list_scrub.append(temp)
 
     # Run marker selection with different methods and parameters
-    output_dir = base_dir / f'{patient_num}/common/markers'
-    output_dir.mkdir(exist_ok=True)
+    output_dir = os.path.join(patient_dir, 'common', 'markers')
+    os.makedirs(output_dir, exist_ok=True)
 
     # Save marker selection results to a text file
-    results_file = output_dir / f'{patient_num}_marker_selection_results.txt'
+    results_file = os.path.join(output_dir, f'{patient}_marker_selection_results.txt')
     with open(results_file, 'w') as f:
-        f.write(f"Marker Selection Results for Patient {patient_num}\n")
+        f.write(f"Marker Selection Results for Patient {patient}\n")
         f.write("=" * 50 + "\n\n")
 
     # Method 1: Tracing fractions
@@ -139,7 +151,7 @@ def main():
     plt.plot(position1, obj1_ordered, 'o-', label='tracing-fractions')
     plt.xticks(position1, selected_markers1_genename_ordered, rotation=30)
     plt.legend()
-    plt.savefig(output_dir / f'{patient_num}_tracing_subclones.png', format='png', dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'{patient}_tracing_subclones.png'), format='png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # Method 2: Tree-based selection with different parameters
@@ -182,7 +194,7 @@ def main():
         plt.plot(position2, obj2_frac_ordered, 'o-', color='tab:orange', label='trees-fractions')
         plt.xticks(position2, selected_markers2_genename_ordered, rotation=30)
         plt.legend()
-        plt.savefig(output_dir / f'{patient_num}_trees_fractions_{lam1}_{lam2}_{read_depth}.png', format='png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(output_dir, f'{patient}_trees_fractions_{lam1}_{lam2}_{read_depth}.png'), format='png', dpi=300, bbox_inches='tight')
         plt.close()
 
         # Plot structures
@@ -190,7 +202,7 @@ def main():
         plt.plot(position2, obj2_struct_ordered, 'o-', color='tab:green', label='trees-structure')
         plt.xticks(position2, selected_markers2_genename_ordered, rotation=30)
         plt.legend()
-        plt.savefig(output_dir / f'{patient_num}_trees_structures_{lam1}_{lam2}_{read_depth}.png', format='png', dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(output_dir, f'{patient}_trees_structures_{lam1}_{lam2}_{read_depth}.png'), format='png', dpi=300, bbox_inches='tight')
         plt.close()
 
 if __name__ == "__main__":
