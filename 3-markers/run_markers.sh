@@ -21,26 +21,28 @@
 
 set -e
 
-# Check for patient ID argument
-if [ -z "$1" ]; then
-    echo "Usage: $0 <patient_id> [num_bootstraps] [read_depth]"
-    exit 1
-fi
-
-patient_id="$1"
-num_bootstraps="${2:-5}"
-read_depth="${3:-1500}"
-
-# Build a bootstrap list (space-separated)
-bootstrap_list=$(seq -s " " 1 "${num_bootstraps}")
+# Get command line arguments
+patient_id=$1
+num_bootstraps=$2
+read_depth=$3
 
 echo "---------------------------------------"
 echo "Running marker selection for patient: ${patient_id}"
-echo "Bootstrap numbers: ${bootstrap_list}"
+echo "Bootstrap numbers: $(seq -s ' ' 1 $num_bootstraps)"
 echo "Read depth: ${read_depth}"
 echo "---------------------------------------"
 
-# Run the marker selection Python script with the provided parameters
-python "$(dirname $0)/run_data.py" "${patient_id}" --bootstrap-list ${bootstrap_list} --read-depth "${read_depth}" --base-dir "${DATA_DIR}"
+# Get directory paths using dirname
+SCRIPT_DIR="$(dirname "$0")"
+RUN_SCRIPT="${SCRIPT_DIR}/run_data.py"
+
+# Create a list of bootstrap numbers from 1 to num_bootstraps
+bootstrap_list=$(seq -s ' ' 1 $num_bootstraps)
+
+# Run the Python script
+python "$RUN_SCRIPT" "${patient_id}" \
+    --bootstrap-list $bootstrap_list \
+    --read-depth $read_depth \
+    --base-dir "${DATA_DIR}"
 
 echo "Marker selection completed successfully for patient ${patient_id}." 

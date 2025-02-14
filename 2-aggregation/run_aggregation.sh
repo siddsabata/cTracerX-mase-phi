@@ -24,7 +24,7 @@ set -e
 
 # Get command line arguments
 patient_id=$1
-num_bootstraps=$2  # This is the total number of bootstraps
+num_bootstraps=$2
 
 echo "---------------------------------------"
 echo "Aggregating data for patient: ${patient_id}"
@@ -32,11 +32,15 @@ echo "Bootstrap numbers: ${num_bootstraps}"
 echo "Patient data directory: ${DATA_DIR}/${patient_id}"
 echo "---------------------------------------"
 
+# Get directory paths using dirname
+SCRIPT_DIR="$(dirname "$0")"
+PROCESS_SCRIPT="${SCRIPT_DIR}/process_tracerx_bootstrap.py"
+
 # Create a list of bootstrap numbers from 1 to num_bootstraps
 bootstrap_list=$(seq -s ' ' 1 $num_bootstraps)
 
 # Run the Python script with all bootstrap numbers
-python ./2-aggregation/process_tracerx_bootstrap.py "${patient_id}" \
+python "$PROCESS_SCRIPT" "${patient_id}" \
     --bootstrap-list $bootstrap_list \
     --base-dir "${DATA_DIR}"
 
