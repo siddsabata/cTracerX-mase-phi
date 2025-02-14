@@ -36,10 +36,21 @@ echo "Patient data directory: ${DATA_DIR}/${patient_id}"
 echo "---------------------------------------"
 
 # Get directory paths using dirname
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # Get absolute path
 PHYLOWGS_PATH="${SCRIPT_DIR}/phylowgs"
-WRITE_RESULTS="${PHYLOWGS_PATH}/write_results.py"
 MULTIEVOLVE="${PHYLOWGS_PATH}/multievolve.py"
+WRITE_RESULTS="${PHYLOWGS_PATH}/write_results.py"
+
+# Verify PhyloWGS scripts exist
+if [ ! -f "$MULTIEVOLVE" ]; then
+    echo "Error: multievolve.py not found at $MULTIEVOLVE"
+    exit 1
+fi
+
+if [ ! -f "$WRITE_RESULTS" ]; then
+    echo "Error: write_results.py not found at $WRITE_RESULTS"
+    exit 1
+fi
 
 # Process each bootstrap
 for i in $(seq 1 $num_bootstraps); do
@@ -67,7 +78,7 @@ for i in $(seq 1 $num_bootstraps); do
     
     # Run PhyloWGS for this bootstrap
     cd "$PHYLOWGS_PATH"
-    echo "Running multievolve.py for bootstrap $i"
+    echo "Running multievolve.py for bootstrap $i from $(pwd)"
     python2 "$MULTIEVOLVE" --num-chains $num_chains \
         --ssms "$SSM_FILE" \
         --cnvs "$CNV_FILE" \
