@@ -23,80 +23,65 @@
 
 set -e
 
-# Check for patient directory argument
-if [ -z "$1" ]; then
-    echo "Usage: $0 <patient_directory> [num_chains] [num_bootstraps]"
-    exit 1
-fi
-
-patient_dir="$1"
-num_chains="${2:-5}"
-num_bootstraps="${3:-5}"
-patient_id=$(basename "$patient_dir")
-
-# Define the base directory for your data.
-# Update DATA_ROOT if your data is located somewhere else.
-DATA_ROOT="${DATA_DIR}"
-patient_data_dir="${DATA_ROOT}/${patient_dir}"
-common_dir="${patient_data_dir}/common"
+# Get command line arguments
+patient_id=$1
+num_chains=$2
+num_bootstraps=$3
 
 echo "---------------------------------------"
 echo "Running PhyloWGS for patient: ${patient_id}"
-echo "Patient data directory: ${patient_data_dir}"
-echo "Common directory: ${common_dir}"
 echo "Number of chains: ${num_chains}"
 echo "Number of bootstraps: ${num_bootstraps}"
+echo "Patient data directory: ${DATA_DIR}/${patient_id}"
 echo "---------------------------------------"
 
-# Validate patient data and common directories
-if [ ! -d "${patient_data_dir}" ]; then
-    echo "Error: Patient data directory ${patient_data_dir} does not exist."
-    exit 1
-fi
+# Get directory paths using dirname
+SCRIPT_DIR="$(dirname "$0")"
+PHYLOWGS_PATH="${SCRIPT_DIR}/phylowgs"
+WRITE_RESULTS="${PHYLOWGS_PATH}/write_results.py"
+MULTIEVOLVE="${PHYLOWGS_PATH}/multievolve.py"
 
-if [ ! -d "${common_dir}" ]; then
-    echo "Error: Common directory ${common_dir} does not exist."
-    exit 1
-fi
-
-# Loop over each bootstrap iteration
-for bootstrap in $(seq 1 "$num_bootstraps"); do
-    echo "---------------------------------------"
-    echo "Processing bootstrap ${bootstrap} for patient ${patient_id}"
+# Process each bootstrap
+for i in $(seq 1 $num_bootstraps); do
+    echo "Processing bootstrap ${i}..."
     
-    BOOTSTRAP_DIR="${common_dir}/bootstrap${bootstrap}"
-    SSM_FILE="${BOOTSTRAP_DIR}/ssm_data_bootstrap${bootstrap}.txt"
-    CNV_FILE="${BOOTSTRAP_DIR}/cnv_data_bootstrap${bootstrap}.txt"
+    # Set up paths
+    BOOTSTRAP_DIR="${DATA_DIR}/${patient_id}/common/bootstrap${i}"
+    SSM_FILE="${BOOTSTRAP_DIR}/ssm_data_bootstrap${i}.txt"
+    CNV_FILE="${BOOTSTRAP_DIR}/cnv_data_bootstrap${i}.txt"
     
-    echo "Bootstrap directory: ${BOOTSTRAP_DIR}"
-    echo "SSM file: ${SSM_FILE}"
-    echo "CNV file: ${CNV_FILE}"
-    
-    # Check that the SSM file exists and show its header for debugging
-    if [ ! -f "${SSM_FILE}" ]; then
-        echo "Error: SSM file ${SSM_FILE} not found."
-        echo "Contents of ${BOOTSTRAP_DIR}:"
-        ls -la "${BOOTSTRAP_DIR}" || true
+    # Check if required files exist
+    if [ ! -f "$SSM_FILE" ]; then
+        echo "Error: SSM file not found at $SSM_FILE"
         exit 1
     fi
     
-    echo "First few lines of SSM file:"
-    head -n 5 "${SSM_FILE}"
+    if [ ! -f "$CNV_FILE" ]; then
+        echo "Error: CNV file not found at $CNV_FILE"
+        exit 1
+    fi
     
-    # Create directories for PhyloWGS output if they do not exist
+    # Create output directories if they don't exist
     mkdir -p "${BOOTSTRAP_DIR}/chains"
     mkdir -p "${BOOTSTRAP_DIR}/tmp"
     
-    # Run PhyloWGS multievolve.py with the specified parameters
-    echo "Running multievolve.py for bootstrap ${bootstrap}..."
-    python2 "$(dirname $0)/phylowgs/multievolve.py" \
-        --num-chains "${num_chains}" \
-        --ssms "${SSM_FILE}" \
-        --cnvs "${CNV_FILE}" \
-        --output-dir "${BOOTSTRAP_DIR}/chains" \
-        --tmp-dir "${BOOTSTRAP_DIR}/tmp"
-    
-    echo "Bootstrap ${bootstrap} completed."
+    # Run PhyloWGS for this bootstrap
+    cd "$PHYLOWGS_PATH"
+    echo "Running multievolve.py for bootstrap $i"
+    python2 "$MULTIEVOLVE" --num-chains $num_chains \
+        --ssms "$SSM_FILE" \
+        --cnvs "$CNV_FILE" \
+        --output-dir "$BOOTSTRAP_DIR/chains" \
+        --tmp-dir "$BOOTSTRAP_DIR/tmp"
+
+    echo "Running write_results.py for bootstrap $i"
+    python2 "$WRITE_RESULTS" --include-ssm-names \
+        "$BOOTSTRAP_DIR/chains/trees.zip" \
+        "$BOOTSTRAP_DIR/result.summ.json.gz" \
+        "$BOOTSTRAP_DIR/result.muts.json.gz" \
+        "$BOOTSTRAP_DIR/result.mutass.zip"
+        
+    cd - > /dev/null
 done
 
-echo "All bootstraps for patient ${patient_id} completed successfully." 
+echo "All bootstraps for patient $patient_id completed successfully." 
