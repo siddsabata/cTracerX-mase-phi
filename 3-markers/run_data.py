@@ -139,9 +139,9 @@ def main():
         for i, (marker, obj) in enumerate(zip(selected_markers1_genename_ordered, obj1_ordered), 1):
             # Get the index of this marker in gene_name_list
             marker_idx = gene_name_list.index(marker)
-            # Get position info
-            chrom = str(calls.iloc[marker_idx]["Chromosome"])
-            pos = str(calls.iloc[marker_idx]["Start_Position"])
+            # Get position info from original unfiltered data
+            chrom = str(inter_original.iloc[marker_idx]["Chromosome"])
+            pos = str(inter_original.iloc[marker_idx]["Start_Position"])
             f.write(f"{i}. {marker} [Chr{chrom}:{pos}]: {obj}\n")
         f.write("\n")
 
@@ -178,9 +178,9 @@ def main():
             for i, (marker, (obj_frac, obj_struct)) in enumerate(zip(selected_markers2_genename_ordered, obj2_ordered), 1):
                 # Get the index of this marker in gene_name_list
                 marker_idx = gene_name_list.index(marker)
-                # Get position info
-                chrom = str(calls.iloc[marker_idx]["Chromosome"])
-                pos = str(calls.iloc[marker_idx]["Start_Position"])
+                # Get position info from original unfiltered data
+                chrom = str(inter_original.iloc[marker_idx]["Chromosome"])
+                pos = str(inter_original.iloc[marker_idx]["Start_Position"])
                 f.write(f"{i}. {marker} [Chr{chrom}:{pos}]: fraction={obj_frac}, structure={obj_struct}\n")
             f.write("\n")
 
