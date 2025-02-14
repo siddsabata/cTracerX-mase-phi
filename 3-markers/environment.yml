@@ -2,7 +2,6 @@ name: markers_env
 channels:
   - conda-forge
   - defaults
-  - gurobi
 dependencies:
   - python=3.11
   - numpy
@@ -16,5 +15,5 @@ dependencies:
   - python-graphviz
   - ete3
   - lxml  # required by ete3
-  - gurobi  # for gurobipy
-  - gurobipy  # the Python interface
+  - pip:
+    - gurobipy  # install gurobipy via pip
