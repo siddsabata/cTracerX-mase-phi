@@ -7,6 +7,7 @@ from pathlib import Path
 from visualize import *
 from analyze import *
 from optimize import *
+import os
 
 def process_bootstrap_data(
     patient: str,
@@ -35,6 +36,19 @@ def process_bootstrap_data(
     patient_dir = Path(base_dir) / str(patient)
     analysis_dir = patient_dir / 'common'
     aggregation_dir = analysis_dir / 'aggregation'
+    
+    # Add debug output at the start
+    print(f"\nProcessing patient directory: {patient_dir}")
+    print(f"Looking for {len(bootstrap_list)} bootstrap directories")
+    
+    for i in bootstrap_list:
+        bootstrap_dir = analysis_dir / f'bootstrap{i}'
+        print(f"\nChecking bootstrap directory: {bootstrap_dir}")
+        if bootstrap_dir.exists():
+            print(f"Found files in {bootstrap_dir}:")
+            print("\n".join(os.listdir(bootstrap_dir)))
+        else:
+            print(f"Directory not found: {bootstrap_dir}")
     
     # Create aggregation directory if it doesn't exist
     aggregation_dir.mkdir(exist_ok=True)
@@ -100,7 +114,15 @@ def process_bootstrap_data(
     # Analyze and save results to aggregation directory
     analyze_tree_distribution(tree_distribution, aggregation_dir, patient, type, fig=True)
     
-    # Save best bootstrap results
+    # Check if we have any valid bootstraps
+    if not tree_distribution or len(tree_distribution.get('freq', [])) == 0:
+        print(f"No valid bootstrap data found for patient in {patient_dir}")
+        print("This could be because:")
+        print("1. PhyloWGS did not generate output files")
+        print("2. No mutations passed the filtering criteria")
+        print("3. The bootstrap files are in unexpected locations")
+        return 1
+
     best_bootstrap_idx = np.argmax(tree_distribution['freq'])
     results_dict = {
         'node_dict_name': tree_distribution['node_dict'][best_bootstrap_idx],
