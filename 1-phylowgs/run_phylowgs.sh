@@ -86,7 +86,7 @@ for i in $(seq 1 $num_bootstraps); do
         --tmp-dir "$BOOTSTRAP_DIR/tmp"
 
     echo "Running write_results.py for bootstrap $i"
-    python2 "$WRITE_RESULTS" --include-ssm-names \
+    python2 "$WRITE_RESULTS" --include-ssm-names result \
         "$BOOTSTRAP_DIR/chains/trees.zip" \
         "$BOOTSTRAP_DIR/result.summ.json.gz" \
         "$BOOTSTRAP_DIR/result.muts.json.gz" \
