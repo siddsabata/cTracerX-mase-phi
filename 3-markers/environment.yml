@@ -10,6 +10,8 @@ dependencies:
   - matplotlib
   - seaborn
   - scikit-learn
-  - pip 
+  - pip
   - graphviz
   - python-graphviz
+  - ete3
+  - lxml  # required by ete3

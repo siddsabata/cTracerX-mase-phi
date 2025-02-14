@@ -13,3 +13,5 @@ dependencies:
   - pip
   - graphviz
   - python-graphviz
+  - pathlib
+  - lxml  # required by ete3

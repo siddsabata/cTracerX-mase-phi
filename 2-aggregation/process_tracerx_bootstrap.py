@@ -75,8 +75,9 @@ def process_bootstrap_data(
     }
     
     # Process each bootstrap from the list
+    processed_bootstraps = 0
     for bootstrap_idx in bootstrap_list:
-        print(f"Processing bootstrap {bootstrap_idx}")
+        print(f"\nProcessing bootstrap {bootstrap_idx}")
         
         # Setup file paths for this bootstrap
         bootstrap_dir = analysis_dir / f"bootstrap{bootstrap_idx}"
@@ -86,10 +87,14 @@ def process_bootstrap_data(
         
         # Check if all required files exist
         required_files = [summ_file, muts_file, mutass_file]
-        if not all(f.exists() for f in required_files):
-            print(f"Skipping bootstrap {bootstrap_idx} - missing required files")
+        missing_files = [f for f in required_files if not f.exists()]
+        if missing_files:
+            print(f"Skipping bootstrap {bootstrap_idx} - missing files:")
+            for f in missing_files:
+                print(f"  - {f}")
             continue
-            
+        
+        processed_bootstraps += 1
         # Process PhyloWGS output
         tree_structure, node_dict, node_dict_name, node_dict_re, final_tree_cp, prev_mat, clonal_freq, vaf_frac = process_phylowgs_output(
             summ_file, muts_file, mutass_file
@@ -110,6 +115,8 @@ def process_bootstrap_data(
         tree_aggregation['freq'].append(1)
         tree_aggregation['clonal_freq'].append(clonal_freq)
         tree_aggregation['vaf_frac'].append(vaf_frac)
+    
+    print(f"\nSuccessfully processed {processed_bootstraps} out of {len(bootstrap_list)} bootstraps")
     
     # Analyze and save results to aggregation directory
     analyze_tree_distribution(tree_distribution, aggregation_dir, patient, type, fig=True)
