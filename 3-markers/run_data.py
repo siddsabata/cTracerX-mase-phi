@@ -58,24 +58,18 @@ def main():
     gene2idx = {'s' + str(i): i for i in range(len(inter_original))}
     gene_list = list(gene2idx.keys())
 
-    # Now filter the data
-    inter = inter_original.copy()
-    inter = inter[inter["Variant_Frequencies_cf"] < 0.9]  # blood
-    inter = inter[inter["Variant_Frequencies_st"] < 0.9]  # tissue
-    calls = inter
-
-    # Create gene name list from filtered data
+    # Create gene name list for all mutations
     gene_name_list = []
     gene_count = {}
 
-    for i in range(inter.shape[0]):
-        gene = calls.iloc[i]["Hugo_Symbol"]
-        ref = calls.iloc[i]["Reference_Allele"]
-        alt = calls.iloc[i]["Allele"]
+    for i in range(len(inter_original)):
+        gene = inter_original.iloc[i]["Hugo_Symbol"]
+        ref = inter_original.iloc[i]["Reference_Allele"]
+        alt = inter_original.iloc[i]["Allele"]
         
         if pd.isna(gene) or not isinstance(gene, str):
-            chrom = str(calls.iloc[i]["Chromosome"])
-            pos = str(calls.iloc[i]["Start_Position"])
+            chrom = str(inter_original.iloc[i]["Chromosome"])
+            pos = str(inter_original.iloc[i]["Start_Position"])
             gene = f"Chr{chrom}:{pos}({ref}>{alt})"
         else:
             mutation = f"({ref}>{alt})"
@@ -86,6 +80,12 @@ def main():
             else:
                 gene = gene_with_mut
         gene_name_list.append(gene)
+
+    # Now filter the data for visualization
+    inter = inter_original.copy()
+    inter = inter[inter["Variant_Frequencies_cf"] < 0.9]  # blood
+    inter = inter[inter["Variant_Frequencies_st"] < 0.9]  # tissue
+    calls = inter
 
     # Load tree distribution
     with open(tree_distribution_file, 'rb') as f:
@@ -122,7 +122,7 @@ def main():
     selected_markers1_genename_ordered = []
     obj1_ordered = []
 
-    for n_markers in range(1, len(gene_name_list) + 1):
+    for n_markers in range(1, len(gene_list) + 1):
         selected_markers1, obj = select_markers_fractions_weighted_overall(gene_list, n_markers, tree_list, node_list_scrub, clonal_freq_list_scrub, gene2idx, tree_freq_list)
         selected_markers1_genename = [gene_name_list[int(i[1:])] for i in selected_markers1]
         obj1_ordered.append(obj)
@@ -158,7 +158,7 @@ def main():
         selected_markers2_genename_ordered = []
         obj2_ordered = []
         
-        for n_markers in range(1, len(gene_name_list) + 1):
+        for n_markers in range(1, len(gene_list) + 1):
             selected_markers2, obj_frac, obj_struct = select_markers_tree_gp(
                 gene_list, n_markers, tree_list, node_list_scrub, clonal_freq_list_scrub, 
                 gene2idx, tree_freq_list, read_depth=read_depth, lam1=lam1, lam2=lam2
