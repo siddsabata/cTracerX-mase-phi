@@ -3,7 +3,7 @@
 #SBATCH --array=0-3%50             
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=16G
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 #SBATCH --output=logs/mase_phi_%A_%a_%j.out
 #SBATCH --error=logs/mase_phi_%A_%a_%j.err
 #SBATCH --job-name=mase_phi
