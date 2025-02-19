@@ -51,38 +51,27 @@ def main():
         print(f"Error: CSV file not found at {csv_file}")
         sys.exit(1)
 
-    # Load tree distribution from aggregation directory
-    with open(tree_distribution_file, 'rb') as f:
-        tree_distribution = pickle.load(f)
-
-    gene_list = []
-    gene2idx = {}
-
-    # Read from CSV
-    inter = pd.read_csv(csv_file)  # Remove index_col=0
-
-    # Filter allele frequencies
-    inter = inter[inter["Variant_Frequencies_cf"] < 0.9]  # blood
-    inter = inter[inter["Variant_Frequencies_st"] < 0.9]  # tissue
-    calls = inter
-
-    gene2idx = {'s' + str(i): i for i in range(len(inter))}
+    # Read from CSV first to get total number of mutations
+    inter_original = pd.read_csv(csv_file)
+    
+    # Create gene mappings before filtering
+    gene2idx = {'s' + str(i): i for i in range(len(inter_original))}
     gene_list = list(gene2idx.keys())
+
+    # Create gene name list for all mutations
     gene_name_list = []
     gene_count = {}
 
-    for i in range(inter.shape[0]):
-        gene = calls.iloc[i]["Hugo_Symbol"]  # Use column name instead of index
-        ref = calls.iloc[i]["Reference_Allele"]
-        alt = calls.iloc[i]["Allele"]
+    for i in range(len(inter_original)):
+        gene = inter_original.iloc[i]["Hugo_Symbol"]
+        ref = inter_original.iloc[i]["Reference_Allele"]
+        alt = inter_original.iloc[i]["Allele"]
         
         if pd.isna(gene) or not isinstance(gene, str):
-            # If no gene name, create a label with chromosome, position, and mutation
-            chrom = str(calls.iloc[i]["Chromosome"])
-            pos = str(calls.iloc[i]["Start_Position"])
+            chrom = str(inter_original.iloc[i]["Chromosome"])
+            pos = str(inter_original.iloc[i]["Start_Position"])
             gene = f"Chr{chrom}:{pos}({ref}>{alt})"
         else:
-            # If gene name exists, add mutation info and handle duplicates
             mutation = f"({ref}>{alt})"
             gene_with_mut = f"{gene}{mutation}"
             if gene_with_mut in gene_name_list:
@@ -91,6 +80,16 @@ def main():
             else:
                 gene = gene_with_mut
         gene_name_list.append(gene)
+
+    # Now filter the data for visualization
+    inter = inter_original.copy()
+    inter = inter[inter["Variant_Frequencies_cf"] < 0.9]  # blood
+    inter = inter[inter["Variant_Frequencies_st"] < 0.9]  # tissue
+    calls = inter
+
+    # Load tree distribution
+    with open(tree_distribution_file, 'rb') as f:
+        tree_distribution = pickle.load(f)
 
     tree_list, node_list, clonal_freq_list, tree_freq_list = tree_distribution['tree_structure'], tree_distribution['node_dict'],tree_distribution['vaf_frac'],tree_distribution['freq']
 
@@ -123,7 +122,7 @@ def main():
     selected_markers1_genename_ordered = []
     obj1_ordered = []
 
-    for n_markers in range(1, len(gene_name_list) + 1):
+    for n_markers in range(1, len(gene_list) + 1):
         selected_markers1, obj = select_markers_fractions_weighted_overall(gene_list, n_markers, tree_list, node_list_scrub, clonal_freq_list_scrub, gene2idx, tree_freq_list)
         selected_markers1_genename = [gene_name_list[int(i[1:])] for i in selected_markers1]
         obj1_ordered.append(obj)
@@ -140,9 +139,9 @@ def main():
         for i, (marker, obj) in enumerate(zip(selected_markers1_genename_ordered, obj1_ordered), 1):
             # Get the index of this marker in gene_name_list
             marker_idx = gene_name_list.index(marker)
-            # Get position info
-            chrom = str(calls.iloc[marker_idx]["Chromosome"])
-            pos = str(calls.iloc[marker_idx]["Start_Position"])
+            # Get position info from original unfiltered data
+            chrom = str(inter_original.iloc[marker_idx]["Chromosome"])
+            pos = str(inter_original.iloc[marker_idx]["Start_Position"])
             f.write(f"{i}. {marker} [Chr{chrom}:{pos}]: {obj}\n")
         f.write("\n")
 
@@ -159,7 +158,7 @@ def main():
         selected_markers2_genename_ordered = []
         obj2_ordered = []
         
-        for n_markers in range(1, len(gene_name_list) + 1):
+        for n_markers in range(1, len(gene_list) + 1):
             selected_markers2, obj_frac, obj_struct = select_markers_tree_gp(
                 gene_list, n_markers, tree_list, node_list_scrub, clonal_freq_list_scrub, 
                 gene2idx, tree_freq_list, read_depth=read_depth, lam1=lam1, lam2=lam2
@@ -179,9 +178,9 @@ def main():
             for i, (marker, (obj_frac, obj_struct)) in enumerate(zip(selected_markers2_genename_ordered, obj2_ordered), 1):
                 # Get the index of this marker in gene_name_list
                 marker_idx = gene_name_list.index(marker)
-                # Get position info
-                chrom = str(calls.iloc[marker_idx]["Chromosome"])
-                pos = str(calls.iloc[marker_idx]["Start_Position"])
+                # Get position info from original unfiltered data
+                chrom = str(inter_original.iloc[marker_idx]["Chromosome"])
+                pos = str(inter_original.iloc[marker_idx]["Start_Position"])
                 f.write(f"{i}. {marker} [Chr{chrom}:{pos}]: fraction={obj_frac}, structure={obj_struct}\n")
             f.write("\n")
 
