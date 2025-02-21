@@ -16,40 +16,11 @@ The PhyloWGS step requires GSL for its C++ components. Install GSL from [the off
 
 ## Data Directory Structure
 
-### Initial Structure
-Your source data is typically provided with this structure:
+### Input Data Format
+The pipeline expects a consolidated CSV file containing mutation data for all patients with the following columns:
 ```
-data/
-└── patient_id/
-    ├── MAFconversion_BC-[id].maf.v4.9.oncoKB.txt  # Blood MAF
-    ├── MAFconversion_CF-[id].maf.v4.9.oncoKB.txt  # Cell-free MAF
-    └── MAFconversion_ST-[id].maf.v4.9.oncoKB.txt  # Solid tumor MAF
+PublicationID,tracerx_id,days_post_surgery,chromosome,position,dao,ddp,daf,gene_name,exonic.func,is_tree_clone,DriverMut
 ```
-
-The pipeline requires the MAF files to be in a 'mafs' subdirectory. Use the provided `organize_files.sh` script to reorganize your data:
-
-1. Copy organize_files.sh to your source directory:
-```bash
-cp organize_files.sh /path/to/source_data/
-cd /path/to/source_data/
-```
-
-2. Run the script to reorganize all patient directories:
-```bash
-bash organize_files.sh
-```
-
-This will create the required structure:
-```
-data/
-└── patient_id/
-    └── mafs/
-        ├── MAFconversion_BC-[id].maf.v4.9.oncoKB.txt  # Blood MAF
-        ├── MAFconversion_CF-[id].maf.v4.9.oncoKB.txt  # Cell-free MAF
-        └── MAFconversion_ST-[id].maf.v4.9.oncoKB.txt  # Solid tumor MAF
-```
-
-After organizing your data, you can proceed with running the pipeline.
 
 ### Final Structure
 After running the pipeline, each patient directory will have this structure:
@@ -58,7 +29,7 @@ data/
 └── patient_id/
     ├── common/
     │   ├── patient_[id].csv                           # Combined mutation data
-    │   ├── bootstrapped_maf.csv                       # Bootstrapped mutation data
+    │   ├── bootstrapped_ssms.csv                      # Bootstrapped mutation data
     │   ├── cnv_data_original.txt                      # Original CNV data
     │   ├── ssm_data_original.txt                      # Original SSM data
     │   ├── bootstrap[1-5]/                            # Bootstrap directories
@@ -81,10 +52,6 @@ data/
     │       ├── [id]_tracing_subclones.png          # Subclone tracking
     │       ├── [id]_trees_fractions_[params].png    # Tree fraction plots
     │       └── [id]_trees_structures_[params].png   # Tree structure plots
-    └── mafs/                                        # Original MAF files
-        ├── MAFconversion_BC-[id].maf.v4.9.oncoKB.txt  # Blood MAF
-        ├── MAFconversion_CF-[id].maf.v4.9.oncoKB.txt  # Cell-free MAF
-        └── MAFconversion_ST-[id].maf.v4.9.oncoKB.txt  # Solid tumor MAF
 ```
 
 ## Running the Pipeline
@@ -95,15 +62,18 @@ data/
    bash init.sh
    ```
 
-2. Edit `main.sh` to configure:
+2. Edit `setup.sh` to configure:
    - `DATA_DIR`: Path to your data directory
-   - `--array=0-N`: Where N is (number_of_patients - 1)
-   - Other SLURM parameters as needed
+   - `INPUT_FILE`: Path to your consolidated CSV file
 
-3. Submit the job:
+3. Run the setup script to process input data and launch the pipeline:
    ```bash
-   sbatch main.sh
+   bash setup.sh
    ```
+   This will:
+   - Create patient directories and process input data
+   - Automatically determine the number of patients
+   - Submit the main SLURM array job
 
 ### Subsequent Runs
 1. Verify conda environments are present:
@@ -112,9 +82,14 @@ data/
    ```
    You should see: preprocess_env, phylowgs_env, aggregation_env, and markers_env
 
-2. Edit `main.sh` as needed and submit:
+2. If needed, edit pipeline parameters in `main.sh`:
+   - `NUM_BOOTSTRAPS`: Number of bootstrap iterations (default: 5)
+   - `NUM_CHAINS`: Number of PhyloWGS chains (default: 5)
+   - `READ_DEPTH`: Read depth for marker selection (default: 1500)
+
+3. Run setup script again:
    ```bash
-   sbatch main.sh
+   bash setup.sh
    ```
 
 ## Utility Scripts

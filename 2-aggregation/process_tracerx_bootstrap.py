@@ -12,11 +12,8 @@ import os
 def process_bootstrap_data(
     patient: str,
     bootstrap_list: list[int],
-    num_blood: int = 0,
-    num_tissue: int = 5,
     type: str = 'common',
     method: str = 'phylowgs',
-    num_chain: int = 5,
     base_dir: Path = Path('data')
 ) -> None:
     """
@@ -25,11 +22,8 @@ def process_bootstrap_data(
     Args:
         patient (str): Patient ID
         bootstrap_list (list[int]): List of bootstrap numbers to process
-        num_blood (int): Number of blood samples
-        num_tissue (int): Number of tissue samples
         type (str): Analysis type ('common' or other)
         method (str): Method used ('phylowgs' or other)
-        num_chain (int): Number of chains
         base_dir (Path): Base directory for data
     """
     # Setup paths
@@ -156,20 +150,11 @@ def parse_args():
     parser.add_argument('--bootstrap-list', type=int, nargs='+',
                       help='List of bootstrap numbers to process')
     
-    parser.add_argument('--num-blood', type=int, default=0,
-                      help='Number of blood samples (default: 0)')
-    
-    parser.add_argument('--num-tissue', type=int, default=5,
-                      help='Number of tissue samples (default: 5)')
-    
     parser.add_argument('--type', type=str, default='common',
                       help='Analysis type (default: common)')
     
     parser.add_argument('--method', type=str, default='phylowgs',
                       help='Method used (default: phylowgs)')
-    
-    parser.add_argument('--num-chain', type=int, default=5,
-                      help='Number of chains (default: 5)')
     
     parser.add_argument('--base-dir', type=str, default='data',
                       help='Base directory for data (default: data)')
@@ -186,11 +171,8 @@ if __name__ == "__main__":
     process_bootstrap_data(
         patient=args.patient,
         bootstrap_list=args.bootstrap_list,
-        num_blood=args.num_blood,
-        num_tissue=args.num_tissue,
         type=args.type,
         method=args.method,
-        num_chain=args.num_chain,
         base_dir=base_dir
     )
 
@@ -198,10 +180,7 @@ if __name__ == "__main__":
 to run: 
 python process_tracerx_bootstrap.py 256 \
     --bootstrap-list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 \
-    --num-blood 0 \
-    --num-tissue 5 \
     --type common \
     --method phylowgs \
-    --num-chain 5 \
     --base-dir /path/to/data
 """

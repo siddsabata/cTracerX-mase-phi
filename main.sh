@@ -25,86 +25,87 @@ source ~/miniconda3/bin/activate || {
 
 # Base configuration
 export DATA_DIR="/home/ssabata/patient_data/mafs_test"  # <-- Replace with your actual data path
+export INPUT_FILE="${DATA_DIR}/patients_n3_t5.csv"      # <-- Add this line for consolidated input file
 export NUM_BOOTSTRAPS=5
 export NUM_CHAINS=5
 export READ_DEPTH=1500
 
-# Print debug info
-echo "[$(date)] Job started"
-echo "Running on host: $(hostname)"
-echo "Working directory: $(pwd)"
-echo "DATA_DIR: ${DATA_DIR}"
-echo "SLURM_ARRAY_TASK_ID: ${SLURM_ARRAY_TASK_ID}"
+# Get patient ID from array task ID
+# Read the unique patient IDs from the CSV file (skip header)
+readarray -t patient_ids < <(tail -n +2 "${INPUT_FILE}" | cut -d',' -f1 | sort -u)
+patient_id="${patient_ids[$SLURM_ARRAY_TASK_ID]}"
 
-# Verify data directory exists
-if [ ! -d "${DATA_DIR}" ]; then
-    echo "Error: DATA_DIR (${DATA_DIR}) does not exist"
+if [ -z "$patient_id" ]; then
+    echo "Error: No patient ID found for array task ${SLURM_ARRAY_TASK_ID}"
     exit 1
 fi
-
-# Get patient ID from array index
-patients=($(ls ${DATA_DIR} | grep -v "\."))
-if [ ${#patients[@]} -eq 0 ]; then
-    echo "Error: No patient directories found in ${DATA_DIR}"
-    exit 1
-fi
-
-patient_id=${patients[$SLURM_ARRAY_TASK_ID]}
-patient_dir="${DATA_DIR}/${patient_id}"
 
 echo "[$(date)] Processing patient: ${patient_id}"
 
-# Function to check if step is completed
-check_step_completed() {
-    local step=$1
-    local marker_file="${patient_dir}/.${step}_completed"
-    [ -f "$marker_file" ]
-}
-
-# Function to mark step as completed
+# Function to mark a step as completed
 mark_step_completed() {
     local step=$1
-    touch "${patient_dir}/.${step}_completed"
+    touch "${DATA_DIR}/${patient_id}/.${step}_complete"
 }
 
-# Function to run a processing step
+# Function to check if a step is completed
+is_step_completed() {
+    local step=$1
+    [ -f "${DATA_DIR}/${patient_id}/.${step}_complete" ]
+}
+
+# Function to run a pipeline step
 run_step() {
     local step=$1
-    if check_step_completed "$step"; then
-        echo "[$(date)] Step '$step' already completed for patient $patient_id, skipping..."
+    
+    # Skip if step is already completed
+    if is_step_completed "$step"; then
+        echo "[$(date)] Step '$step' already completed for patient $patient_id"
         return 0
-    fi
-
+    }
+    
     echo "[$(date)] Running step '$step' for patient $patient_id"
-
+    
     case "$step" in
-        preprocess)
+        "preprocess")
             conda activate preprocess_env
-            ./0-preprocess/run_preprocess.sh "${patient_id}" "${NUM_BOOTSTRAPS}"
-            # Check for empty.txt after preprocess step
-            if [ -f "${patient_dir}/common/empty.txt" ]; then
-                echo "[$(date)] No common mutations found for patient ${patient_id}. Stopping processing."
-                exit 0
-            fi
+            python 0-preprocess/bootstrap.py \
+                -i "${DATA_DIR}/${patient_id}/common/patient_${patient_id}.csv" \
+                -o "${DATA_DIR}/${patient_id}/common" \
+                -n "${NUM_BOOTSTRAPS}" || return $?
             ;;
-        phylowgs)
+            
+        "phylowgs")
             conda activate phylowgs_env
-            ./1-phylowgs/run_phylowgs.sh "${patient_id}" "${NUM_CHAINS}" "${NUM_BOOTSTRAPS}"
+            python 1-phylowgs/run_phylowgs.py \
+                "${patient_id}" "${NUM_CHAINS}" "${NUM_BOOTSTRAPS}" || return $?
             ;;
-        aggregation)
+            
+        "aggregation")
             conda activate aggregation_env
-            ./2-aggregation/run_aggregation.sh "${patient_id}" "${NUM_BOOTSTRAPS}"
+            python 2-aggregation/process_tracerx_bootstrap.py \
+                "${patient_id}" \
+                --bootstrap-list $(seq 1 ${NUM_BOOTSTRAPS}) \
+                --num-blood 0 \
+                --num-tissue 5 \
+                --base-dir "${DATA_DIR}" || return $?
             ;;
-        markers)
+            
+        "markers")
             conda activate markers_env
-            ./3-markers/run_markers.sh "${patient_id}" "${NUM_BOOTSTRAPS}" "${READ_DEPTH}"
+            python 3-markers/run_data.py \
+                "${patient_id}" \
+                --bootstrap-list $(seq 1 ${NUM_BOOTSTRAPS}) \
+                --read-depth "${READ_DEPTH}" \
+                --base-dir "${DATA_DIR}" || return $?
             ;;
+            
         *)
             echo "Unknown step: $step"
             return 1
             ;;
     esac
-
+    
     local exit_code=$?
     if [ $exit_code -eq 0 ]; then
         mark_step_completed "$step"

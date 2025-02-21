@@ -74,7 +74,7 @@ def bootstrap_maf(maf_df, num_bootstraps):
     Performs bootstrapping on aggregated MAF data
     
     Args:
-        maf_df: DataFrame from maf_agg.py containing merged mutation data
+        maf_df: DataFrame from process_tracerX.py containing mutation data
         num_bootstraps: Number of bootstrap iterations to perform
     
     Returns:
@@ -82,38 +82,22 @@ def bootstrap_maf(maf_df, num_bootstraps):
     """
     df_bootstrap = maf_df.copy()
     
-    # Process tissue data
-    tissue_af = maf_df["Variant_Frequencies_st"].tolist()
-    tissue_depth = maf_df["Total_Depth_st"].tolist()
+    # Process data
+    af = maf_df["Variant_Frequencies"].tolist()
+    depth = maf_df["Total_Depth"].tolist()
     
-    tissue_af_boot, tissue_depth_boot = bootstrap_va_dt(tissue_af, tissue_depth, num_bootstraps)
+    af_boot, depth_boot = bootstrap_va_dt(af, depth, num_bootstraps)
     
     # Create column names for bootstrapped results
-    tissue_af_cols = [f"Variant_Frequencies_st_bootstrap_{i+1}" for i in range(tissue_af_boot.shape[1])]
-    tissue_depth_cols = [f"Total_Depth_st_bootstrap_{i+1}" for i in range(tissue_depth_boot.shape[1])]
+    af_cols = [f"Variant_Frequencies_bootstrap_{i+1}" for i in range(af_boot.shape[1])]
+    depth_cols = [f"Total_Depth_bootstrap_{i+1}" for i in range(depth_boot.shape[1])]
     
-    # Add bootstrapped tissue columns
+    # Add bootstrapped columns
     df_bootstrap = pd.concat([
         df_bootstrap,
-        pd.DataFrame(tissue_af_boot, columns=tissue_af_cols),
-        pd.DataFrame(tissue_depth_boot, columns=tissue_depth_cols)
+        pd.DataFrame(af_boot, columns=af_cols),
+        pd.DataFrame(depth_boot, columns=depth_cols)
     ], axis=1)
-    
-    # Process blood data if present
-    if "Variant_Frequencies_cf" in maf_df.columns:
-        blood_af = maf_df["Variant_Frequencies_cf"].tolist()
-        blood_depth = maf_df["Total_Depth_cf"].tolist()
-        
-        blood_af_boot, blood_depth_boot = bootstrap_va_dt(blood_af, blood_depth, num_bootstraps)
-        
-        blood_af_cols = [f"Variant_Frequencies_cf_bootstrap_{i+1}" for i in range(blood_af_boot.shape[1])]
-        blood_depth_cols = [f"Total_Depth_cf_bootstrap_{i+1}" for i in range(blood_depth_boot.shape[1])]
-        
-        df_bootstrap = pd.concat([
-            df_bootstrap,
-            pd.DataFrame(blood_af_boot, columns=blood_af_cols),
-            pd.DataFrame(blood_depth_boot, columns=blood_depth_cols)
-        ], axis=1)
     
     return df_bootstrap
 
@@ -130,35 +114,16 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     for idx, row in bootstrap_df.iterrows():
         gene = row["Hugo_Symbol"] if isinstance(row["Hugo_Symbol"], str) else f"{row['Chromosome']}_{row['Start_Position']}"
         
-        # Get tissue values
-        tissue_depth = int(row[f"Total_Depth_st_bootstrap_{bootstrap_num}"])
-        tissue_vaf = row[f"Variant_Frequencies_st_bootstrap_{bootstrap_num}"]
-        tissue_ref = int(np.round(tissue_depth * (1 - tissue_vaf)))
-        
-        # Check if blood data exists for this bootstrap
-        has_blood = (f"Total_Depth_cf_bootstrap_{bootstrap_num}" in bootstrap_df.columns and 
-                    f"Variant_Frequencies_cf_bootstrap_{bootstrap_num}" in bootstrap_df.columns and 
-                    not pd.isna(row[f"Total_Depth_cf_bootstrap_{bootstrap_num}"]))
-        
-        if has_blood:
-            # Get blood values
-            blood_depth = int(row[f"Total_Depth_cf_bootstrap_{bootstrap_num}"])
-            blood_vaf = row[f"Variant_Frequencies_cf_bootstrap_{bootstrap_num}"]
-            blood_ref = int(np.round(blood_depth * (1 - blood_vaf)))
-            
-            # Combine blood and tissue values with blood first
-            ref_count = f"{blood_ref},{tissue_ref}"
-            depth = f"{blood_depth},{tissue_depth}"
-        else:
-            # Use only tissue values
-            ref_count = str(tissue_ref)
-            depth = str(tissue_depth)
+        # Get values for this bootstrap
+        depth = int(row[f"Total_Depth_bootstrap_{bootstrap_num}"])
+        vaf = row[f"Variant_Frequencies_bootstrap_{bootstrap_num}"]
+        ref_count = int(np.round(depth * (1 - vaf)))
         
         boot_phylowgs.append({
             'id': f's{idx}',
             'gene': gene,
-            'a': ref_count,
-            'd': depth,
+            'a': str(ref_count),
+            'd': str(depth),
             'mu_r': 0.999,
             'mu_v': 0.499
         })
@@ -167,9 +132,9 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     df_boot = pd.DataFrame(boot_phylowgs)
     df_boot.to_csv(ssm_file, sep='\t', index=False)
     
-    # Create empty CNV file (completely empty)
+    # Create empty CNV file
     cnv_file = os.path.join(output_dir, f'cnv_data_bootstrap{bootstrap_num}.txt')
-    open(cnv_file, 'w').close()  # Creates an empty file
+    open(cnv_file, 'w').close()
 
 def main():
     parser = argparse.ArgumentParser(description='Bootstrap MAF data')
@@ -189,7 +154,7 @@ def main():
     
     # Save bootstrapped data
     os.makedirs(args.output, exist_ok=True)
-    bootstrap_df.to_csv(os.path.join(args.output, 'bootstrapped_maf.csv'), index=False)
+    bootstrap_df.to_csv(os.path.join(args.output, 'bootstrapped_ssms.csv'), index=False)
 
     # Create bootstrap SSM and CNV files
     for i in range(1, args.num_bootstraps + 1):
