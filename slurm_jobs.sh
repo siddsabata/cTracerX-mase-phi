@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --partition=pool1           
-#SBATCH --array=0-3%50             
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=16G
 #SBATCH --time=48:00:00
@@ -62,7 +61,7 @@ run_step() {
     if is_step_completed "$step"; then
         echo "[$(date)] Step '$step' already completed for patient $patient_id"
         return 0
-    }
+    fi
     
     echo "[$(date)] Running step '$step' for patient $patient_id"
     
