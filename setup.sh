@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Activate conda base environment first
+source ~/miniconda3/bin/activate || {
+    echo "Failed to source conda"
+    exit 1
+}
+
+# Activate preprocess environment
+conda activate preprocess_env || {
+    echo "Failed to activate preprocess_env"
+    echo "Make sure you've run init.sh to create the conda environments"
+    exit 1
+}
+
 # Base configuration
 export DATA_DIR="/home/ssabata/patient_data/tracerx_test"
 export INPUT_FILE="${DATA_DIR}/patients_n3_t5.csv"
@@ -15,7 +28,6 @@ mkdir -p "${DATA_DIR}"
 echo "Using data directory: ${DATA_DIR}"
 
 # Run initial preprocessing to create patient directories
-conda activate preprocess_env
 echo "Processing input file: ${INPUT_FILE}"
 python 0-preprocess/process_tracerX.py \
     -i "${INPUT_FILE}" \
