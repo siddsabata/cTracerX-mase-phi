@@ -68,35 +68,22 @@ run_step() {
     case "$step" in
         "preprocess")
             conda activate preprocess_env
-            python 0-preprocess/bootstrap.py \
-                -i "${DATA_DIR}/${patient_id}/common/patient_${patient_id}.csv" \
-                -o "${DATA_DIR}/${patient_id}/common" \
-                -n "${NUM_BOOTSTRAPS}" || return $?
+            ./0-preprocess/run_preprocess.sh "${patient_id}" "${NUM_BOOTSTRAPS}"
             ;;
             
         "phylowgs")
             conda activate phylowgs_env
-            python 1-phylowgs/run_phylowgs.py \
-                "${patient_id}" "${NUM_CHAINS}" "${NUM_BOOTSTRAPS}" || return $?
+            ./1-phylowgs/run_phylowgs.sh "${patient_id}" "${NUM_CHAINS}" "${NUM_BOOTSTRAPS}"
             ;;
             
         "aggregation")
             conda activate aggregation_env
-            python 2-aggregation/process_tracerx_bootstrap.py \
-                "${patient_id}" \
-                --bootstrap-list $(seq 1 ${NUM_BOOTSTRAPS}) \
-                --num-blood 0 \
-                --num-tissue 5 \
-                --base-dir "${DATA_DIR}" || return $?
+            ./2-aggregation/run_aggregation.sh "${patient_id}" "${NUM_BOOTSTRAPS}"
             ;;
             
         "markers")
             conda activate markers_env
-            python 3-markers/run_data.py \
-                "${patient_id}" \
-                --bootstrap-list $(seq 1 ${NUM_BOOTSTRAPS}) \
-                --read-depth "${READ_DEPTH}" \
-                --base-dir "${DATA_DIR}" || return $?
+            ./3-markers/run_markers.sh "${patient_id}" "${NUM_BOOTSTRAPS}" "${READ_DEPTH}"
             ;;
             
         *)

@@ -23,15 +23,21 @@ if [ ! -f "${INPUT_FILE}" ]; then
     exit 1
 fi
 
-# Create data directory
-mkdir -p "${DATA_DIR}"
-echo "Using data directory: ${DATA_DIR}"
+# Check if initial processing has been done
+first_patient=$(tail -n +2 "${INPUT_FILE}" | cut -d',' -f1 | sort -u | head -n 1)
+if [ -f "${DATA_DIR}/${first_patient}/common/patient_${first_patient}.csv" ]; then
+    echo "Initial processing already done, skipping..."
+else
+    # Create data directory
+    mkdir -p "${DATA_DIR}"
+    echo "Using data directory: ${DATA_DIR}"
 
-# Run initial preprocessing to create patient directories
-echo "Processing input file: ${INPUT_FILE}"
-python 0-preprocess/process_tracerX.py \
-    -i "${INPUT_FILE}" \
-    -o "${DATA_DIR}"
+    # Run initial preprocessing to create patient directories
+    echo "Processing input file: ${INPUT_FILE}"
+    python 0-preprocess/process_tracerX.py \
+        -i "${INPUT_FILE}" \
+        -o "${DATA_DIR}"
+fi
 
 # Count number of patients for array job
 num_patients=$(tail -n +2 "${INPUT_FILE}" | cut -d',' -f1 | sort -u | wc -l)
