@@ -25,7 +25,7 @@ source ~/miniconda3/bin/activate || {
 # Base configuration
 export DATA_DIR="/home/ssabata/patient_data/tracerx_test"  # <-- Replace with your actual data path
 export INPUT_FILE="${DATA_DIR}/patients_n3_t5.csv"      # <-- Add this line for consolidated input file
-export NUM_BOOTSTRAPS=5
+export NUM_BOOTSTRAPS=100
 export NUM_CHAINS=5
 export READ_DEPTH=1500
 
