@@ -11,7 +11,7 @@
 #  5. Runs the PhyloWGS multievolve.py script.
 #
 # Usage:
-#   ./run_phylowgs.sh <patient_directory> [num_chains] [num_bootstraps]
+#   ./run_phylowgs.sh <timepoint_dir> <num_chains> <num_bootstraps>
 #
 # Example:
 #   ./run_phylowgs.sh ppi_975 5 5
@@ -23,76 +23,93 @@
 
 set -e
 
-# Get command line arguments
-patient_id=$1
-num_chains=$2
-num_bootstraps=$3
+# Check if required arguments are provided
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <timepoint_dir> <num_chains> <num_bootstraps>"
+    exit 1
+fi
+
+# Extract arguments
+timepoint_dir="$1"
+num_chains="$2"
+num_bootstraps="$3"
 
 echo "---------------------------------------"
-echo "Running PhyloWGS for patient: ${patient_id}"
+echo "Running PhyloWGS for timepoint directory: ${timepoint_dir}"
 echo "Number of chains: ${num_chains}"
 echo "Number of bootstraps: ${num_bootstraps}"
-echo "Patient data directory: ${DATA_DIR}/${patient_id}"
 echo "---------------------------------------"
 
-# Get directory paths using dirname
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # Get absolute path
-PHYLOWGS_PATH="${SCRIPT_DIR}/phylowgs"
-MULTIEVOLVE="${PHYLOWGS_PATH}/multievolve.py"
-WRITE_RESULTS="${PHYLOWGS_PATH}/write_results.py"
-
-# Verify PhyloWGS scripts exist
-if [ ! -f "$MULTIEVOLVE" ]; then
-    echo "Error: multievolve.py not found at $MULTIEVOLVE"
-    exit 1
-fi
-
-if [ ! -f "$WRITE_RESULTS" ]; then
-    echo "Error: write_results.py not found at $WRITE_RESULTS"
-    exit 1
-fi
+# Get the PhyloWGS installation directory
+phylowgs_dir="${PWD}/1-phylowgs/phylowgs"
 
 # Process each bootstrap
-for i in $(seq 1 $num_bootstraps); do
-    echo "Processing bootstrap ${i}..."
+for bootstrap_num in $(seq 1 "${num_bootstraps}"); do
+    echo "Processing bootstrap ${bootstrap_num}..."
     
-    # Set up paths
-    BOOTSTRAP_DIR="${DATA_DIR}/${patient_id}/common/bootstrap${i}"
-    SSM_FILE="${BOOTSTRAP_DIR}/ssm_data_bootstrap${i}.txt"
-    CNV_FILE="${BOOTSTRAP_DIR}/cnv_data_bootstrap${i}.txt"
+    # Define files and directories for this bootstrap
+    bootstrap_dir="${timepoint_dir}/bootstrap${bootstrap_num}"
+    ssm_file="${bootstrap_dir}/ssm_data_bootstrap${bootstrap_num}.txt"
+    cnv_file="${bootstrap_dir}/cnv_data_bootstrap${bootstrap_num}.txt"
     
-    # Check if required files exist
-    if [ ! -f "$SSM_FILE" ]; then
-        echo "Error: SSM file not found at $SSM_FILE"
+    # Check if SSM file exists
+    if [ ! -f "${ssm_file}" ]; then
+        echo "Error: SSM file not found at ${ssm_file}"
         exit 1
     fi
     
-    if [ ! -f "$CNV_FILE" ]; then
-        echo "Error: CNV file not found at $CNV_FILE"
-        exit 1
+    # Create bootstrap directory if it doesn't exist
+    mkdir -p "${bootstrap_dir}"
+    
+    # Create chains directory for this bootstrap
+    chains_dir="${bootstrap_dir}/chains"
+    mkdir -p "${chains_dir}"
+    
+    # Create tmp directory for this bootstrap
+    tmp_dir="${bootstrap_dir}/tmp"
+    mkdir -p "${tmp_dir}"
+    
+    # Run PhyloWGS
+    cd "${phylowgs_dir}"
+    
+    # Check if CNV file exists and is not empty
+    if [ -f "${cnv_file}" ] && [ -s "${cnv_file}" ]; then
+        echo "Running PhyloWGS with SSM and CNV data..."
+        python2 multievolve.py \
+            --num-chains "${num_chains}" \
+            --ssms "${ssm_file}" \
+            --cnvs "${cnv_file}" \
+            --output-dir "${chains_dir}" \
+            --tmp-dir "${tmp_dir}"
+    else
+        echo "Running PhyloWGS with SSM data only..."
+        python2 multievolve.py \
+            --num-chains "${num_chains}" \
+            --ssms "${ssm_file}" \
+            --output-dir "${chains_dir}" \
+            --tmp-dir "${tmp_dir}"
     fi
     
-    # Create output directories if they don't exist
-    mkdir -p "${BOOTSTRAP_DIR}/chains"
-    mkdir -p "${BOOTSTRAP_DIR}/tmp"
-    
-    # Run PhyloWGS for this bootstrap
-    cd "$PHYLOWGS_PATH"
-    echo "Running multievolve.py for bootstrap $i from $(pwd)"
-    python2 "$MULTIEVOLVE" --num-chains $num_chains \
-        --ssms "$SSM_FILE" \
-        --cnvs "$CNV_FILE" \
-        --output-dir "$BOOTSTRAP_DIR/chains" \
-        --tmp-dir "$BOOTSTRAP_DIR/tmp"
-
-    echo "Running write_results.py for bootstrap $i"
-    python2 "$WRITE_RESULTS" --include-ssm-names result \
-        "$BOOTSTRAP_DIR/chains/trees.zip" \
-        "$BOOTSTRAP_DIR/result.summ.json.gz" \
-        "$BOOTSTRAP_DIR/result.muts.json.gz" \
-        "$BOOTSTRAP_DIR/result.mutass.zip"
-        
+    # Back to original directory
     cd - > /dev/null
+    
+    # Compress results
+    echo "Compressing results for bootstrap ${bootstrap_num}..."
+    if [ -f "${chains_dir}/trees.zip" ]; then
+        cp "${chains_dir}/trees.zip" "${bootstrap_dir}/result.mutass.zip"
+    fi
+    if [ -f "${chains_dir}/mutass.zip" ]; then
+        cp "${chains_dir}/mutass.zip" "${bootstrap_dir}/result.mutass.zip"
+    fi
+    if [ -f "${chains_dir}/muts.json.gz" ]; then
+        cp "${chains_dir}/muts.json.gz" "${bootstrap_dir}/result.muts.json.gz"
+    fi
+    if [ -f "${chains_dir}/summ.json.gz" ]; then
+        cp "${chains_dir}/summ.json.gz" "${bootstrap_dir}/result.summ.json.gz"
+    fi
+    
+    echo "Completed bootstrap ${bootstrap_num}"
 done
 
-echo "All bootstraps for patient $patient_id completed successfully." 
+echo "PhyloWGS analysis completed for all bootstraps"
+exit 0 
