@@ -16,6 +16,14 @@ mkdir -p logs || {
     exit 1
 }
 
+# Activate conda base environment FIRST, before trying to process arguments
+echo "Activating conda base environment..."
+source ~/miniconda3/bin/activate || {
+    echo "Failed to source conda"
+    exit 1
+}
+
+# AFTER conda is activated, process arguments
 # Get the timepoint list file from command line
 timepoint_list_file="${1}"
 if [ ! -f "${timepoint_list_file}" ]; then
@@ -34,18 +42,16 @@ fi
 timepoint_name=$(basename "${timepoint_dir}")
 echo "[$(date)] Processing timepoint: ${timepoint_name} (${timepoint_dir})"
 
-# Activate conda base environment
-source ~/miniconda3/bin/activate || {
-    echo "Failed to source conda"
-    exit 1
-}
+# Pass through environment variables from main script
+# These should come from main.sh via the sbatch --export option
+: ${NUM_BOOTSTRAPS:=100}
+: ${NUM_CHAINS:=5}
+: ${READ_DEPTH:=1500}
 
-# Base configuration
-export DATA_DIR="/home/ssabata/patient_data/tracerx_test"  # <-- Replace with your actual data path
-export INPUT_FILE="${DATA_DIR}/patients_n3_t5.csv"      # <-- Add this line for consolidated input file
-export NUM_BOOTSTRAPS=100
-export NUM_CHAINS=5
-export READ_DEPTH=1500
+echo "Using configuration:"
+echo "  NUM_BOOTSTRAPS=${NUM_BOOTSTRAPS}"
+echo "  NUM_CHAINS=${NUM_CHAINS}"
+echo "  READ_DEPTH=${READ_DEPTH}"
 
 # Function to mark a step as completed for this timepoint
 mark_step_completed() {

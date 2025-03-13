@@ -87,7 +87,7 @@ echo "=========================================================="
 echo "Submitting SLURM array job for ${num_timepoints} timepoints"
 echo "Each job will process one timepoint with ${NUM_BOOTSTRAPS} bootstraps"
 
-job_id=$(sbatch --parsable --array=0-$((num_timepoints-1)) slurm_jobs.sh "${timepoint_list_file}")
+job_id=$(sbatch --parsable --export=ALL,NUM_BOOTSTRAPS,NUM_CHAINS,READ_DEPTH --array=0-$((num_timepoints-1)) slurm_jobs.sh "${timepoint_list_file}")
 
 if [ -n "$job_id" ]; then
     echo "Success! SLURM job array submitted with ID: ${job_id}"

@@ -99,9 +99,9 @@ bash main.sh
 
 This will:
 1. Process your input CSV file to create timepoint directories
-2. Count the number of patients in your data
-3. Submit SLURM jobs to process each patient (one job per patient)
-4. Each job will process all timepoints for that patient
+2. Find all timepoint directories across all patients
+3. Submit a SLURM array job with one task per timepoint
+4. Each task processes one timepoint through all pipeline stages
 
 ### Step 4: Monitor Progress
 Check the status of your jobs:
@@ -119,9 +119,10 @@ tail -f logs/mase_phi_JOBID_*.out
 - Reads the input CSV file 
 - Creates patient directories with timepoint subdirectories
 - Each timepoint directory contains a CSV file with mutation data
+- Creates a list of all timepoint directories
 
-### 2. SLURM Job Processing (`slurm_jobs.sh`)
-For each patient, for each timepoint:
+### 2. Parallel Timepoint Processing (`slurm_jobs.sh`)
+For each timepoint (running as a separate SLURM array task):
 
 **Preprocessing:**
 - Runs `bootstrap.py` on the timepoint CSV file
@@ -138,6 +139,20 @@ For each patient, for each timepoint:
 **Marker Selection:**
 - Runs `run_data.py` to select optimal marker mutations
 - Generates visualizations and reports
+
+## Performance Considerations
+
+The pipeline is designed for high-performance computing environments:
+
+- **Highly Parallel**: Each timepoint runs as a separate SLURM job
+- **Efficient Resource Use**: Processes can be distributed across many nodes
+- **Checkpoint-Based**: Each completed step is marked to allow resuming after failure
+- **High-Throughput**: Can process dozens or hundreds of timepoints simultaneously
+
+For large datasets with many timepoints, consider:
+- Adjusting the number of bootstrap samples based on your computational resources
+- Setting reasonable time limits in the SLURM configuration
+- Using resource-appropriate partitions for your cluster
 
 ## Troubleshooting
 
