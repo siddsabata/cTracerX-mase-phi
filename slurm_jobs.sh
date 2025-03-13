@@ -16,20 +16,25 @@ mkdir -p logs || {
     exit 1
 }
 
-# Activate conda base environment FIRST, before trying to process arguments
+# IMPORTANT! Don't take timepoint list from command line argument
+# Instead, read it from a hardcoded path that matches main.sh
+timepoint_list_file="${DATA_DIR}/timepoint_list.txt"
+
+echo "Starting job. DATA_DIR=${DATA_DIR}"
+echo "Reading timepoint list from: ${timepoint_list_file}"
+
+# Check if the timepoint list file exists
+if [ ! -f "${timepoint_list_file}" ]; then
+    echo "ERROR: Timepoint list file not found: ${timepoint_list_file}"
+    exit 1
+fi
+
+# Activate conda base environment after checking file, before processing content
 echo "Activating conda base environment..."
 source ~/miniconda3/bin/activate || {
     echo "Failed to source conda"
     exit 1
 }
-
-# AFTER conda is activated, process arguments
-# Get the timepoint list file from command line
-timepoint_list_file="${1}"
-if [ ! -f "${timepoint_list_file}" ]; then
-    echo "ERROR: Timepoint list file not found: ${timepoint_list_file}"
-    exit 1
-fi
 
 # Read the timepoint directory for this array task
 timepoint_dir=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" "${timepoint_list_file}")
