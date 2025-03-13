@@ -4,8 +4,8 @@
 #
 # This script:
 # 1. Processes the input CSV to create timepoint directories
-# 2. Counts the number of patients 
-# 3. Submits SLURM array jobs to process each patient
+# 2. Counts the total number of timepoint directories
+# 3. Submits SLURM array jobs to process each timepoint
 #
 # Usage: 
 #   bash main.sh
@@ -31,9 +31,9 @@ conda activate preprocess_env || {
 # Configuration variables - EDIT THESE FOR YOUR ENVIRONMENT
 export DATA_DIR="/path/to/output/directory"   # <-- EDIT THIS
 export INPUT_FILE="/path/to/cruk0044.csv"     # <-- EDIT THIS
-export NUM_BOOTSTRAPS=100
-export NUM_CHAINS=5
-export READ_DEPTH=1500
+export NUM_BOOTSTRAPS=100   # Number of bootstrap iterations
+export NUM_CHAINS=5         # Number of PhyloWGS chains
+export READ_DEPTH=1500      # Read depth for marker selection
 
 # Print configuration
 echo "=========================================================="
@@ -66,18 +66,28 @@ python 0-preprocess/process_tracerX.py -i "${INPUT_FILE}" -o "${DATA_DIR}"
 
 echo "Initial preprocessing complete. Timepoint directories created."
 
-# Count number of patients for array job
-num_patients=$(tail -n +2 "${INPUT_FILE}" | cut -d',' -f1 | sort -u | wc -l)
-echo "Found ${num_patients} patients to process"
+# Find all timepoint directories
+echo "Searching for timepoint directories..."
+readarray -t all_timepoint_dirs < <(find "${DATA_DIR}" -type d -path "*/[A-Z]*_*_*" -not -path "*/\.*")
 
-# Submit SLURM array job
-echo "=========================================================="
-echo "STEP 2: Submitting SLURM jobs to process each patient/timepoint"
-echo "=========================================================="
-echo "Submitting SLURM array job for ${num_patients} patients"
-echo "Each job will process all timepoints for one patient"
+# Count total number of timepoint directories
+num_timepoints=${#all_timepoint_dirs[@]}
+echo "Found ${num_timepoints} total timepoint directories to process"
 
-job_id=$(sbatch --parsable --array=0-$((num_patients-1)) slurm_jobs.sh)
+# Write all timepoint paths to a file for slurm_jobs.sh to read
+echo "Writing timepoint paths to file..."
+timepoint_list_file="${DATA_DIR}/timepoint_list.txt"
+printf "%s\n" "${all_timepoint_dirs[@]}" > "${timepoint_list_file}"
+echo "Timepoint list saved to: ${timepoint_list_file}"
+
+# Submit SLURM array job - one job per timepoint
+echo "=========================================================="
+echo "STEP 2: Submitting SLURM jobs to process each timepoint"
+echo "=========================================================="
+echo "Submitting SLURM array job for ${num_timepoints} timepoints"
+echo "Each job will process one timepoint with ${NUM_BOOTSTRAPS} bootstraps"
+
+job_id=$(sbatch --parsable --array=0-$((num_timepoints-1)) slurm_jobs.sh "${timepoint_list_file}")
 
 if [ -n "$job_id" ]; then
     echo "Success! SLURM job array submitted with ID: ${job_id}"

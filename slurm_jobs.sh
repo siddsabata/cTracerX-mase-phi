@@ -16,6 +16,24 @@ mkdir -p logs || {
     exit 1
 }
 
+# Get the timepoint list file from command line
+timepoint_list_file="${1}"
+if [ ! -f "${timepoint_list_file}" ]; then
+    echo "ERROR: Timepoint list file not found: ${timepoint_list_file}"
+    exit 1
+fi
+
+# Read the timepoint directory for this array task
+timepoint_dir=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" "${timepoint_list_file}")
+if [ -z "${timepoint_dir}" ]; then
+    echo "ERROR: No timepoint directory found for array task ${SLURM_ARRAY_TASK_ID}"
+    exit 1
+fi
+
+# Extract timepoint name
+timepoint_name=$(basename "${timepoint_dir}")
+echo "[$(date)] Processing timepoint: ${timepoint_name} (${timepoint_dir})"
+
 # Activate conda base environment
 source ~/miniconda3/bin/activate || {
     echo "Failed to source conda"
@@ -29,50 +47,33 @@ export NUM_BOOTSTRAPS=100
 export NUM_CHAINS=5
 export READ_DEPTH=1500
 
-# Get patient ID from array task ID
-# Read the unique patient IDs from the CSV file (skip header)
-readarray -t patient_ids < <(tail -n +2 "${INPUT_FILE}" | cut -d',' -f1 | sort -u)
-patient_id="${patient_ids[$SLURM_ARRAY_TASK_ID]}"
-
-if [ -z "$patient_id" ]; then
-    echo "Error: No patient ID found for array task ${SLURM_ARRAY_TASK_ID}"
-    exit 1
-fi
-
-echo "[$(date)] Processing patient: ${patient_id}"
-
-# Function to mark a step as completed for a timepoint
+# Function to mark a step as completed for this timepoint
 mark_step_completed() {
     local step=$1
-    local timepoint_dir=$2
     touch "${timepoint_dir}/.${step}_complete"
 }
 
-# Function to check if a step is completed for a timepoint
+# Function to check if a step is completed for this timepoint
 is_step_completed() {
     local step=$1
-    local timepoint_dir=$2
     [ -f "${timepoint_dir}/.${step}_complete" ]
 }
 
-# Function to run a pipeline step for a timepoint
+# Function to run a pipeline step
 run_step() {
     local step=$1
-    local timepoint_dir=$2
-    local timepoint=$(basename "$timepoint_dir")
     
     # Skip if step is already completed
-    if is_step_completed "$step" "$timepoint_dir"; then
-        echo "[$(date)] Step '$step' already completed for timepoint $timepoint"
+    if is_step_completed "$step"; then
+        echo "[$(date)] Step '$step' already completed for timepoint $timepoint_name"
         return 0
     fi
     
-    echo "[$(date)] Running step '$step' for timepoint $timepoint in directory $timepoint_dir"
+    echo "[$(date)] Running step '$step' for timepoint $timepoint_name"
     
     case "$step" in
         "preprocess")
             conda activate preprocess_env
-            # For preprocess, use the bootstrap.py directly since process_tracerX.py already ran
             # Find the timepoint CSV file
             timepoint_csv=$(find "$timepoint_dir" -name "*.csv" -type f | head -n 1)
             if [ -z "$timepoint_csv" ]; then
@@ -92,12 +93,8 @@ run_step() {
         "aggregation")
             conda activate aggregation_env
             
-            # Get timepoint info for process_tracerx_bootstrap.py
             # Extract just the bootstrap numbers
             bootstrap_list=$(seq -s ' ' 1 $NUM_BOOTSTRAPS)
-            
-            # Extract patient_id and date information from the timepoint directory
-            timepoint_name=$(basename "$timepoint_dir")
             
             # Create aggregation directory
             mkdir -p "${timepoint_dir}/aggregation"
@@ -110,9 +107,6 @@ run_step() {
             
         "markers")
             conda activate markers_env
-            
-            # Get timepoint info for run_data.py
-            timepoint_name=$(basename "$timepoint_dir")
             
             # Create markers directory
             mkdir -p "${timepoint_dir}/markers"
@@ -131,43 +125,27 @@ run_step() {
     
     local exit_code=$?
     if [ $exit_code -eq 0 ]; then
-        mark_step_completed "$step" "$timepoint_dir"
-        echo "[$(date)] Successfully completed step '$step' for timepoint in $timepoint_dir"
+        mark_step_completed "$step" 
+        echo "[$(date)] Successfully completed step '$step' for timepoint $timepoint_name"
         return 0
     else
         if [ "$step" == "phylowgs" ] && [ $exit_code -eq 1 ]; then
             echo "[$(date)] PhyloWGS failed for timepoint (likely no viable mutations)"
             exit 0
         else
-            echo "[$(date)] Error in step '$step' for timepoint in $timepoint_dir (exit code: $exit_code)"
+            echo "[$(date)] Error in step '$step' for timepoint $timepoint_name (exit code: $exit_code)"
             return 1
         fi
     fi
 }
 
-# Find all timepoint directories for this patient
-patient_dir="${DATA_DIR}/${patient_id}"
-timepoint_dirs=($(find "${patient_dir}" -type d -name "${patient_id}_*" -not -path "*/\.*"))
-
-echo "[$(date)] Found ${#timepoint_dirs[@]} timepoint directories for patient ${patient_id}"
-for tp_dir in "${timepoint_dirs[@]}"; do
-    echo "  - $tp_dir"
+# Process each step for this timepoint
+STEPS=("preprocess" "phylowgs" "aggregation" "markers")
+for step in "${STEPS[@]}"; do
+    if ! run_step "$step"; then
+        echo "[$(date)] Failed at step '$step' for timepoint $timepoint_name"
+        exit 1
+    fi
 done
 
-# Process each timepoint directory
-for timepoint_dir in "${timepoint_dirs[@]}"; do
-    echo "[$(date)] Processing timepoint directory: ${timepoint_dir}"
-    
-    # Process each step for this timepoint
-    STEPS=("preprocess" "phylowgs" "aggregation" "markers")
-    for step in "${STEPS[@]}"; do
-        if ! run_step "$step" "$timepoint_dir"; then
-            echo "[$(date)] Failed at step '$step' for timepoint directory $timepoint_dir"
-            exit 1
-        fi
-    done
-    
-    echo "[$(date)] Successfully completed all steps for timepoint directory $timepoint_dir"
-done
-
-echo "[$(date)] Successfully completed all steps for all timepoints of patient $patient_id" 
+echo "[$(date)] Successfully completed all steps for timepoint $timepoint_name" 
