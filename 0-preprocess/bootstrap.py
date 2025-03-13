@@ -5,27 +5,14 @@ import argparse
 from pathlib import Path
 
 """
-The purpose of this script is to perform bootstrapping on the aggregated MAF data. 
+The purpose of this script is to perform bootstrapping on mutation data from TRACERx.
 
-This is the second step in the Mase-phi pipeline, as we are processing the aggregated MAF data to 
-be used in PhyloWGS (or whatever other model we want to use). 
+This script takes the processed data from process_tracerX.py and performs bootstrapping
+to quantify uncertainty in the variant calls. It creates multiple bootstrap replicates
+which can then be analyzed by PhyloWGS.
 
-The script will take in the aggregated MAF data (from maf_agg.py). 
-
-This script will then output an original SSM file given by the inputted MAF file, a CSV file with the bootstrapped data, 
-and n directories, each containing a bootstrapped SSM file to be used by PhyloWGS. 
-
-example: usage 
-python bootstrap_maf.py -i <merged csv file> -o <output directory> -n <number of bootstraps> -p <generate phylowgs input>
-
-NOTE: for -p you don't have to add anything after the flag. If you want phylowgs output, you must add the flag. 
-
-The bootstrapping process:
-1. First resamples read depths while maintaining total coverage
-2. Then resamples variant frequencies using the new depths
-3. Repeats this process n times to create bootstrap replicates
-
-TODO: is there a better way to do this? scipy.stats.bootstrap?
+Usage: 
+python bootstrap.py -i <input csv file> -o <output directory> -n <number of bootstraps>
 """
 
 def bootstrap_va_dt(AF_list, Depth_list, bootstrap_num):
@@ -71,7 +58,7 @@ def bootstrap_va_dt(AF_list, Depth_list, bootstrap_num):
 
 def bootstrap_maf(maf_df, num_bootstraps):
     """
-    Performs bootstrapping on aggregated MAF data
+    Performs bootstrapping on mutation data
     
     Args:
         maf_df: DataFrame from process_tracerX.py containing mutation data
@@ -82,9 +69,20 @@ def bootstrap_maf(maf_df, num_bootstraps):
     """
     df_bootstrap = maf_df.copy()
     
-    # Process data
-    af = maf_df["Variant_Frequencies"].tolist()
-    depth = maf_df["Total_Depth"].tolist()
+    # Get variant frequency and depth columns - handle both old and new column names
+    if "MutVAF" in maf_df.columns:
+        af = maf_df["MutVAF"].tolist()
+    elif "Variant_Frequencies" in maf_df.columns:
+        af = maf_df["Variant_Frequencies"].tolist()
+    else:
+        raise ValueError("Could not find variant frequency column (MutVAF or Variant_Frequencies)")
+    
+    if "DOR" in maf_df.columns:
+        depth = maf_df["DOR"].tolist()
+    elif "Total_Depth" in maf_df.columns:
+        depth = maf_df["Total_Depth"].tolist()
+    else:
+        raise ValueError("Could not find depth column (DOR or Total_Depth)")
     
     af_boot, depth_boot = bootstrap_va_dt(af, depth, num_bootstraps)
     
@@ -104,19 +102,49 @@ def bootstrap_maf(maf_df, num_bootstraps):
 def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     """
     Write SSM data for a specific bootstrap iteration
+    
+    Args:
+        bootstrap_df: DataFrame with bootstrapped data
+        bootstrap_num: The bootstrap iteration number
+        output_dir: Directory to write the SSM files
     """
+    # Create bootstrap directory
+    bootstrap_dir = os.path.join(output_dir, f'bootstrap{bootstrap_num}')
+    os.makedirs(bootstrap_dir, exist_ok=True)
+    
     # Create SSM file
-    ssm_file = os.path.join(output_dir, f'ssm_data_bootstrap{bootstrap_num}.txt')
-    os.makedirs(output_dir, exist_ok=True)
+    ssm_file = os.path.join(bootstrap_dir, f'ssm_data_bootstrap{bootstrap_num}.txt')
     
     # Create phyloWGS input for this bootstrap iteration
     boot_phylowgs = []
     for idx, row in bootstrap_df.iterrows():
-        gene = row["Hugo_Symbol"] if isinstance(row["Hugo_Symbol"], str) else f"{row['Chromosome']}_{row['Start_Position']}"
+        # Handle different column naming conventions
+        if "Hugo_Symbol" in bootstrap_df.columns:
+            gene_col = "Hugo_Symbol"
+        else:
+            gene_col = "Gene"
+            
+        if "Position" in bootstrap_df.columns:
+            pos_col = "Position"
+        elif "Start_Position" in bootstrap_df.columns:
+            pos_col = "Start_Position"
+        else:
+            pos_col = None
+        
+        # Get gene name or chromosome_position
+        if pd.notna(row[gene_col]) and isinstance(row[gene_col], str):
+            gene = row[gene_col]
+        elif "Chromosome" in bootstrap_df.columns and pos_col is not None:
+            gene = f"{row['Chromosome']}_{row[pos_col]}"
+        else:
+            gene = f"gene_{idx}"
         
         # Get values for this bootstrap
-        depth = int(row[f"Total_Depth_bootstrap_{bootstrap_num}"])
-        vaf = row[f"Variant_Frequencies_bootstrap_{bootstrap_num}"]
+        boot_vaf_col = f"Variant_Frequencies_bootstrap_{bootstrap_num}"
+        boot_depth_col = f"Total_Depth_bootstrap_{bootstrap_num}"
+        
+        depth = int(row[boot_depth_col])
+        vaf = row[boot_vaf_col]
         ref_count = int(np.round(depth * (1 - vaf)))
         
         boot_phylowgs.append({
@@ -133,36 +161,40 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     df_boot.to_csv(ssm_file, sep='\t', index=False)
     
     # Create empty CNV file
-    cnv_file = os.path.join(output_dir, f'cnv_data_bootstrap{bootstrap_num}.txt')
+    cnv_file = os.path.join(bootstrap_dir, f'cnv_data_bootstrap{bootstrap_num}.txt')
     open(cnv_file, 'w').close()
 
 def main():
-    parser = argparse.ArgumentParser(description='Bootstrap MAF data')
+    parser = argparse.ArgumentParser(description='Bootstrap mutation data')
     parser.add_argument('-i', '--input', required=True,
-                       help='Input MAF CSV file (output from maf_agg.py)')
+                       help='Input CSV file with mutation data')
     parser.add_argument('-o', '--output', required=True,
                        help='Output directory for bootstrapped files')
     parser.add_argument('-n', '--num_bootstraps', type=int, default=100,
                        help='Number of bootstrap iterations')
     args = parser.parse_args()
 
-    # Read merged MAF data
+    # Ensure output directory exists
+    os.makedirs(args.output, exist_ok=True)
+    
+    # Read input data
+    print(f"Reading input file: {args.input}")
     maf_df = pd.read_csv(args.input)
     
     # Perform bootstrapping
+    print(f"Performing {args.num_bootstraps} bootstrap iterations...")
     bootstrap_df = bootstrap_maf(maf_df, args.num_bootstraps)
     
     # Save bootstrapped data
-    os.makedirs(args.output, exist_ok=True)
     bootstrap_df.to_csv(os.path.join(args.output, 'bootstrapped_ssms.csv'), index=False)
 
     # Create bootstrap SSM and CNV files
+    print("Creating bootstrap files for PhyloWGS...")
     for i in range(1, args.num_bootstraps + 1):
-        boot_dir = os.path.join(args.output, f'bootstrap{i}')
-        os.makedirs(boot_dir, exist_ok=True)
-        
         # Create SSM and CNV files for this bootstrap
-        write_bootstrap_ssm(bootstrap_df, i, boot_dir)
+        write_bootstrap_ssm(bootstrap_df, i, args.output)
+    
+    print(f"Bootstrap process completed. Files saved to {args.output}")
 
 if __name__ == "__main__":
     main() 
