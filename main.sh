@@ -29,8 +29,8 @@ conda activate preprocess_env || {
 }
 
 # Configuration variables - EDIT THESE FOR YOUR ENVIRONMENT
-export DATA_DIR="/path/to/output/directory"   # <-- EDIT THIS
-export INPUT_FILE="/path/to/cruk0044.csv"     # <-- EDIT THIS
+export DATA_DIR="/home/ssabata/patient_data/tracerx_2017/"   # <-- EDIT THIS
+export INPUT_FILE="/home/ssabata/patient_data/tracerx_2017/cruk0044.csv"     # <-- EDIT THIS
 export NUM_BOOTSTRAPS=100   # Number of bootstrap iterations
 export NUM_CHAINS=5         # Number of PhyloWGS chains
 export READ_DEPTH=1500      # Read depth for marker selection
