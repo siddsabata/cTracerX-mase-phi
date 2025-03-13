@@ -194,6 +194,16 @@ def main():
         # Create SSM and CNV files for this bootstrap
         write_bootstrap_ssm(bootstrap_df, i, args.output)
     
+    # Always create an empty CNV file if it doesn't exist
+    for bootstrap_num in range(1, args.num_bootstraps + 1):
+        cnv_file = os.path.join(args.output, f"bootstrap{bootstrap_num}", f"cnv_data_bootstrap{bootstrap_num}.txt")
+        if not os.path.exists(os.path.dirname(cnv_file)):
+            os.makedirs(os.path.dirname(cnv_file))
+        if not os.path.exists(cnv_file):
+            with open(cnv_file, 'w') as f:
+                # Write empty CNV file with header
+                f.write("chr\tstart\tend\tmajor_cn\tminor_cn\tcellular_prevalence\n")
+    
     print(f"Bootstrap process completed. Files saved to {args.output}")
 
 if __name__ == "__main__":

@@ -61,6 +61,12 @@ for bootstrap_num in $(seq 1 "${num_bootstraps}"); do
     # Create bootstrap directory if it doesn't exist
     mkdir -p "${bootstrap_dir}"
     
+    # Ensure CNV file exists (create empty one if needed)
+    if [ ! -f "${cnv_file}" ]; then
+        echo "Creating empty CNV file at ${cnv_file}"
+        echo "chr	start	end	major_cn	minor_cn	cellular_prevalence" > "${cnv_file}"
+    fi
+    
     # Create chains directory for this bootstrap
     chains_dir="${bootstrap_dir}/chains"
     mkdir -p "${chains_dir}"
@@ -72,23 +78,19 @@ for bootstrap_num in $(seq 1 "${num_bootstraps}"); do
     # Run PhyloWGS
     cd "${phylowgs_dir}"
     
-    # Check if CNV file exists and is not empty
-    if [ -f "${cnv_file}" ] && [ -s "${cnv_file}" ]; then
-        echo "Running PhyloWGS with SSM and CNV data..."
-        python2 multievolve.py \
-            --num-chains "${num_chains}" \
-            --ssms "${ssm_file}" \
-            --cnvs "${cnv_file}" \
-            --output-dir "${chains_dir}" \
-            --tmp-dir "${tmp_dir}"
-    else
-        echo "Running PhyloWGS with SSM data only..."
-        python2 multievolve.py \
-            --num-chains "${num_chains}" \
-            --ssms "${ssm_file}" \
-            --output-dir "${chains_dir}" \
-            --tmp-dir "${tmp_dir}"
+    # Always provide CNV file (create if needed)
+    if [ ! -f "${cnv_file}" ]; then
+        echo "Creating empty CNV file at ${cnv_file}"
+        echo "chr	start	end	major_cn	minor_cn	cellular_prevalence" > "${cnv_file}"
     fi
+    
+    echo "Running PhyloWGS..."
+    python2 multievolve.py \
+        --num-chains "${num_chains}" \
+        --ssms "${ssm_file}" \
+        --cnvs "${cnv_file}" \
+        --output-dir "${chains_dir}" \
+        --tmp-dir "${tmp_dir}"
     
     # Back to original directory
     cd - > /dev/null
