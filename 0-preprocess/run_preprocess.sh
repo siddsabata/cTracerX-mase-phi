@@ -1,15 +1,15 @@
 #!/bin/bash
 # --------------------------------------------------
-# This script preprocesses mutation data for a timepoint directory.
+# This script handles the initial preprocessing of mutation data.
 #
 # It performs:
-#  1. Bootstrapping via bootstrap.py on the timepoint CSV file
+#  1. Initial preprocessing via process_tracerX.py to create timepoint directories
 #
 # Usage:
-#   ./run_preprocess.sh <timepoint_directory> [num_bootstraps]
+#   ./run_preprocess.sh <input_csv_file> <output_directory>
 #
 # Example:
-#   ./run_preprocess.sh /data/CRUK0044_baseline_2014-11-28 10
+#   ./run_preprocess.sh /data/cruk0044.csv /data/tracerx_2017/
 #
 # Note:
 #   Ensure the conda environment with the required dependencies 
@@ -19,40 +19,42 @@
 # Get the directory containing this script
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check for timepoint directory argument
-if [ -z "$1" ]; then
-    echo "Usage: $0 <timepoint_directory> [num_bootstraps]"
+# Check for input and output directory arguments
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "Usage: $0 <input_csv_file> <output_directory>"
     exit 1
 fi
 
-timepoint_dir="$1"
-num_bootstraps="${2:-10}"
-timepoint_id=$(basename "$timepoint_dir")
+input_file="$1"
+output_dir="$2"
 
 echo "---------------------------------------"
-echo "Processing timepoint: ${timepoint_id}"
-echo "Directory: ${timepoint_dir}"
-echo "Number of bootstraps: ${num_bootstraps}"
+echo "Running initial preprocessing"
+echo "Input file: ${input_file}"
+echo "Output directory: ${output_dir}"
 echo "---------------------------------------"
 
-# Validate timepoint directory exists
-if [ ! -d "$timepoint_dir" ]; then
-    echo "Error: Timepoint directory ${timepoint_dir} does not exist"
+# Validate input file exists
+if [ ! -f "$input_file" ]; then
+    echo "Error: Input file ${input_file} does not exist"
     exit 1
 fi
 
-# Find the timepoint CSV file
-timepoint_csv=$(find "$timepoint_dir" -name "*.csv" -type f | head -n 1)
+# Create output directory if it doesn't exist
+mkdir -p "$output_dir"
 
-if [ -z "$timepoint_csv" ]; then
-    echo "Error: No CSV file found in ${timepoint_dir}"
-    exit 1
-fi
+# Run process_tracerX.py for initial preprocessing
+echo "Running initial preprocessing with process_tracerX.py..."
+python "${script_dir}/process_tracerX.py" -i "${input_file}" -o "${output_dir}"
 
-echo "Found CSV file: ${timepoint_csv}"
+# Count the number of timepoint directories created
+num_timepoints=$(find "${output_dir}" -type d -path "*/[A-Z]*_*_*" -not -path "*/\.*" | wc -l)
+echo "Created ${num_timepoints} timepoint directories"
 
-# Run bootstrap processing
-echo "Running bootstrap processing with ${num_bootstraps} iterations..."
-python "${script_dir}/bootstrap.py" --input "${timepoint_csv}" --output "${timepoint_dir}" --num_bootstraps "${num_bootstraps}"
+# Generate the timepoint list file
+echo "Writing timepoint paths to file..."
+timepoint_list_file="${output_dir}/timepoint_list.txt"
+find "${output_dir}" -type d -path "*/[A-Z]*_*_*" -not -path "*/\.*" > "${timepoint_list_file}"
+echo "Timepoint list saved to: ${timepoint_list_file}"
 
-echo "Preprocessing for timepoint ${timepoint_id} completed successfully." 
+echo "Initial preprocessing completed successfully." 
