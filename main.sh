@@ -56,6 +56,10 @@ preprocess_job=$(sbatch \
     --job-name=preprocess_ctrl \
     --output=logs/preprocess_ctrl_%j.out \
     --error=logs/preprocess_ctrl_%j.err \
+    --partition=pool1 \
+    --cpus-per-task=2 \
+    --mem=8G \
+    --time=48:00:00 \
     --export=ALL,DATA_DIR="${DATA_DIR}",INPUT_FILE="${INPUT_FILE}",NUM_BOOTSTRAPS="${NUM_BOOTSTRAPS}" \
     preprocess_worker.sh)
 
@@ -79,7 +83,7 @@ bootstrap_job=$(sbatch \
     --wrap="#!/bin/bash
     set -e
     
-    echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] Starting bootstrapping for ALL timepoints'
+    echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Starting bootstrapping for ALL timepoints\"
     
     # Source conda
     source ~/miniconda3/bin/activate
@@ -99,16 +103,16 @@ bootstrap_job=$(sbatch \
     current=1
     while read -r timepoint_dir; do
         timepoint_name=\$(basename \"\${timepoint_dir}\")
-        echo \"[$(date \"+%Y-%m-%d %H:%M:%S\")] Processing timepoint \${current}/\${total_timepoints}: \${timepoint_name}\"
+        echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Processing timepoint \${current}/\${total_timepoints}: \${timepoint_name}\"
         
         # Run bootstrap processing directly 
         ./1-bootstrap/run_bootstrap.sh \"\${timepoint_dir}\" ${NUM_BOOTSTRAPS}
         
-        echo \"[$(date \"+%Y-%m-%d %H:%M:%S\")] Completed timepoint \${current}/\${total_timepoints}: \${timepoint_name}\"
+        echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Completed timepoint \${current}/\${total_timepoints}: \${timepoint_name}\"
         current=\$((current + 1))
     done < \"\${timepoint_list_file}\"
     
-    echo '[$(date \"+%Y-%m-%d %H:%M:%S\")] All timepoints have been bootstrapped successfully'")
+    echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] All timepoints have been bootstrapped successfully\"")
 
 bootstrap_job_id=$(echo ${bootstrap_job} | awk '{print $4}')
 echo "Submitted bootstrap job with ID: ${bootstrap_job_id}"
@@ -119,6 +123,10 @@ phylowgs_job=$(sbatch \
     --job-name=phylowgs_ctrl \
     --output=logs/phylowgs_ctrl_%j.out \
     --error=logs/phylowgs_ctrl_%j.err \
+    --partition=pool1 \
+    --cpus-per-task=2 \
+    --mem=8G \
+    --time=48:00:00 \
     --export=ALL,DATA_DIR="${DATA_DIR}",NUM_BOOTSTRAPS="${NUM_BOOTSTRAPS}",NUM_CHAINS="${NUM_CHAINS}",READ_DEPTH="${READ_DEPTH}",CHUNK_SIZE="${CHUNK_SIZE}" \
     pipeline_controller.sh)
 
