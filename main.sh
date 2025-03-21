@@ -48,38 +48,25 @@ mkdir -p "${DATA_DIR}"
 echo "Using data directory: ${DATA_DIR}"
 
 echo "=========================================================="
-echo "STEP 1: Starting preprocessing and bootstrapping"
+echo "STEP 1: Running preprocessing"
 echo "=========================================================="
 
-# Submit the preprocess_worker job to handle initial preprocessing and bootstrapping
-preprocess_job=$(sbatch \
-    --job-name=preprocess_ctrl \
-    --output=logs/preprocess_ctrl_%j.out \
-    --error=logs/preprocess_ctrl_%j.err \
-    --partition=pool1 \
-    --cpus-per-task=2 \
-    --mem=8G \
-    --time=48:00:00 \
-    --export=ALL,DATA_DIR="${DATA_DIR}",INPUT_FILE="${INPUT_FILE}",NUM_BOOTSTRAPS="${NUM_BOOTSTRAPS}" \
-    preprocess_worker.sh)
-
-preprocess_job_id=$(echo ${preprocess_job} | awk '{print $4}')
-echo "Submitted preprocessing controller job with ID: ${preprocess_job_id}"
+# Run preprocessing directly (creates timepoint directories)
+./0-preprocess/run_preprocess.sh ${INPUT_FILE} ${DATA_DIR}
 
 echo "=========================================================="
-echo "STEP 2: Setting up PhyloWGS processing (will start after bootstrapping completes)"
+echo "STEP 2: Submitting bootstrapping job"
 echo "=========================================================="
 
-# Submit the bootstrap job ourselves with a dependency on the preprocess job
+# Submit bootstrapping job 
 bootstrap_job=$(sbatch \
-    --dependency=afterok:${preprocess_job_id} \
     --job-name=bootstrap_all \
     --output=logs/bootstrap_all_%j.out \
     --error=logs/bootstrap_all_%j.err \
     --partition=pool1 \
     --cpus-per-task=5 \
     --mem=16G \
-    --time=24:00:00 \
+    --time=72:00:00 \
     --wrap="#!/bin/bash
     set -e
     
@@ -117,7 +104,11 @@ bootstrap_job=$(sbatch \
 bootstrap_job_id=$(echo ${bootstrap_job} | awk '{print $4}')
 echo "Submitted bootstrap job with ID: ${bootstrap_job_id}"
 
-# Submit the pipeline controller job (depends on bootstrap completion)
+echo "=========================================================="
+echo "STEP 3: Submitting PhyloWGS processing job"
+echo "=========================================================="
+
+# Submit the pipeline controller job
 phylowgs_job=$(sbatch \
     --dependency=afterok:${bootstrap_job_id} \
     --job-name=phylowgs_ctrl \
@@ -126,7 +117,7 @@ phylowgs_job=$(sbatch \
     --partition=pool1 \
     --cpus-per-task=2 \
     --mem=8G \
-    --time=48:00:00 \
+    --time=168:00:00 \
     --export=ALL,DATA_DIR="${DATA_DIR}",NUM_BOOTSTRAPS="${NUM_BOOTSTRAPS}",NUM_CHAINS="${NUM_CHAINS}",READ_DEPTH="${READ_DEPTH}",CHUNK_SIZE="${CHUNK_SIZE}" \
     pipeline_controller.sh)
 
@@ -136,8 +127,7 @@ echo "Submitted PhyloWGS controller job with ID: ${phylowgs_job_id}"
 echo "=========================================================="
 echo "Pipeline initiated successfully!"
 echo "=========================================================="
-echo "Job dependencies:"
-echo " - preprocess_ctrl (${preprocess_job_id}) → bootstrap_all (${bootstrap_job_id}) → phylowgs_ctrl (${phylowgs_job_id})"
+echo "Job flow: Preprocessing (done) → bootstrap_all (${bootstrap_job_id}) → phylowgs_ctrl (${phylowgs_job_id})"
 echo
 echo "Monitor job progress with: squeue -u $USER"
 echo "View logs in: logs/ directory"
