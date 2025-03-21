@@ -113,7 +113,7 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     os.makedirs(bootstrap_dir, exist_ok=True)
     
     # Create SSM file
-    ssm_file = os.path.join(bootstrap_dir, f'ssm.txt')
+    ssm_file = os.path.join(bootstrap_dir, f'ssm_data_bootstrap{bootstrap_num}.txt')
     
     # Create phyloWGS input for this bootstrap iteration
     boot_phylowgs = []
@@ -160,9 +160,10 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     df_boot = pd.DataFrame(boot_phylowgs)
     df_boot.to_csv(ssm_file, sep='\t', index=False)
     
-    # Create empty CNV file
+    # Create empty CNV file with header
     cnv_file = os.path.join(bootstrap_dir, f'cnv.txt')
-    open(cnv_file, 'w').close()
+    with open(cnv_file, 'w') as f:
+        f.write("chr\tstart\tend\tmajor_cn\tminor_cn\tcellular_prevalence\n")
 
 def main():
     parser = argparse.ArgumentParser(description='Bootstrap mutation data')
@@ -193,16 +194,6 @@ def main():
     for i in range(1, args.num_bootstraps + 1):
         # Create SSM and CNV files for this bootstrap
         write_bootstrap_ssm(bootstrap_df, i, args.output)
-    
-    # Always create an empty CNV file if it doesn't exist
-    for bootstrap_num in range(1, args.num_bootstraps + 1):
-        cnv_file = os.path.join(args.output, f"bootstrap{bootstrap_num}", f"cnv_data_bootstrap{bootstrap_num}.txt")
-        if not os.path.exists(os.path.dirname(cnv_file)):
-            os.makedirs(os.path.dirname(cnv_file))
-        if not os.path.exists(cnv_file):
-            with open(cnv_file, 'w') as f:
-                # Write empty CNV file with header
-                f.write("chr\tstart\tend\tmajor_cn\tminor_cn\tcellular_prevalence\n")
     
     print(f"Bootstrap process completed. Files saved to {args.output}")
 
