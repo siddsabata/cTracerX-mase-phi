@@ -54,7 +54,17 @@ echo "Created ${num_timepoints} timepoint directories"
 # Generate the timepoint list file
 echo "Writing timepoint paths to file..."
 timepoint_list_file="${output_dir}/timepoint_list.txt"
-find "${output_dir}" -type d -path "*/[A-Z]*_*_*" -not -path "*/\.*" > "${timepoint_list_file}"
+
+# Clear the file first
+> "${timepoint_list_file}"
+
+# Find all timepoint directories
+find "${output_dir}" -type d -path "*/[A-Z]*_*_*" -not -path "*/\.*" | while read -r fullpath; do
+    # Convert to relative path
+    relpath=$(realpath --relative-to="${output_dir}" "${fullpath}")
+    echo "./${relpath}" >> "${timepoint_list_file}"
+done
+
 echo "Timepoint list saved to: ${timepoint_list_file}"
 
 echo "Initial preprocessing completed successfully." 
