@@ -38,10 +38,10 @@ chmod +x 1-bootstrap/run_bootstrap.sh
 chmod +x 2-phylowgs/run_phylowgs.sh
 chmod +x 3-aggregation/run_aggregation.sh
 chmod +x 4-markers/run_markers.sh
-chmod +x preprocess_worker.sh
-chmod +x phylowgs_worker.sh
-chmod +x postprocess_worker.sh
-chmod +x pipeline_controller.sh
+chmod +x preprocess_bootstrap.sh
+chmod +x run_all_postprocessing.sh
+chmod +x run_phylowgs_parallel.sh
+chmod +x run_postprocessing.sh
 echo "Execute permissions set successfully."
 
 # Create conda environments from yml files
