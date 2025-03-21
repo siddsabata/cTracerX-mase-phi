@@ -41,6 +41,10 @@ echo "==========================================================="
 echo "STEP 1A: Running initial preprocessing"
 echo "==========================================================="
 
+# Activate conda environment before preprocessing
+source ~/miniconda3/bin/activate
+conda activate preprocess_env
+
 # Run preprocessing directly
 ./0-preprocess/run_preprocess.sh ${INPUT_FILE} ${DATA_DIR}
 
