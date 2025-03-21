@@ -20,8 +20,9 @@ if [ "$#" -lt 2 ]; then
     exit 1
 fi
 
-INPUT_FILE="$1"
-DATA_DIR="$2"
+# Convert relative paths to absolute paths
+INPUT_FILE=$(realpath "$1")
+DATA_DIR=$(realpath "$2")
 NUM_BOOTSTRAPS="${3:-100}"  # Default 100 if not specified
 
 # Create logs directory
@@ -96,14 +97,27 @@ bootstrap_job=$(sbatch \
         exit 1
     fi
     
-    # Process each timepoint sequentially
+    # Process each timepoint sequentially with absolute paths
     total_timepoints=\$(wc -l < \"\${timepoint_list_file}\")
     echo \"Processing \${total_timepoints} timepoints\"
     
     current=1
-    while read -r timepoint_dir; do
+    while read -r rel_timepoint_dir; do
+        # Convert relative path to absolute if needed
+        if [[ \"\${rel_timepoint_dir}\" == ./* ]]; then
+            # Path is relative to DATA_DIR
+            timepoint_dir=\"${DATA_DIR}/\$(echo \"\${rel_timepoint_dir}\" | sed 's|^\\./||')\"
+        elif [[ \"\${rel_timepoint_dir}\" == /* ]]; then
+            # Path is already absolute
+            timepoint_dir=\"\${rel_timepoint_dir}\"
+        else
+            # Path is relative to current directory
+            timepoint_dir=\"${DATA_DIR}/\${rel_timepoint_dir}\"
+        fi
+        
         timepoint_name=\$(basename \"\${timepoint_dir}\")
         echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Processing timepoint \${current}/\${total_timepoints}: \${timepoint_name}\"
+        echo \"Using directory: \${timepoint_dir}\"
         
         # Run bootstrap processing
         ./1-bootstrap/run_bootstrap.sh \"\${timepoint_dir}\" ${NUM_BOOTSTRAPS}
