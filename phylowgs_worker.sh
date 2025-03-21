@@ -41,7 +41,8 @@ for bootstrap_num in $(seq $start_bootstrap $end_bootstrap); do
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing bootstrap $bootstrap_num"
     
     # Define directories
-    bootstrap_dir="${TIMEPOINT_DIR}/bootstrap_${bootstrap_num}"
+    input_bootstrap_dir="${TIMEPOINT_DIR}/bootstrap${bootstrap_num}"  # Input directory (no underscore)
+    bootstrap_dir="${TIMEPOINT_DIR}/bootstrap_${bootstrap_num}"       # Output directory (with underscore)
     results_dir="${bootstrap_dir}/phylowgs"
     marker_dir="${bootstrap_dir}/.markers"
     
@@ -55,8 +56,8 @@ for bootstrap_num in $(seq $start_bootstrap $end_bootstrap); do
     mkdir -p "${results_dir}" "${marker_dir}"
     
     # Find SSM and CNV files
-    ssm_file="${bootstrap_dir}/ssm.txt"
-    cnv_file="${bootstrap_dir}/cnv.txt"
+    ssm_file="${input_bootstrap_dir}/ssm.txt"
+    cnv_file="${input_bootstrap_dir}/cnv.txt"
     
     if [ ! -f "${ssm_file}" ]; then
         echo "ERROR: SSM file not found for bootstrap $bootstrap_num"
