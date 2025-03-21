@@ -81,6 +81,7 @@ bootstrap_job=$(sbatch \
     --cpus-per-task=5 \
     --mem=16G \
     --time=72:00:00 \
+    --dependency=afterok:${preprocess_job_id} \
     --wrap="#!/bin/bash
     set -e
     
