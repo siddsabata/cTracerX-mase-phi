@@ -28,9 +28,9 @@ echo "Bootstrap: ${bootstrap_num}"
 echo "Number of chains: ${num_chains}"
 echo "---------------------------------------"
 
-# Define input and output directories
-input_dir="${timepoint_dir}/bootstrap${bootstrap_num}"     # Input directory (no underscore)
-output_dir="${timepoint_dir}/bootstrap_${bootstrap_num}"   # Output directory (with underscore)
+# Define input and output directories - convert to absolute paths
+input_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}")  # Input dir (absolute path)
+output_dir=$(realpath "${timepoint_dir}/bootstrap_${bootstrap_num}") # Output dir (absolute path)
 
 # Create output directories
 mkdir -p "${output_dir}/chains" "${output_dir}/tmp"
@@ -55,6 +55,12 @@ fi
 phylowgs_dir="$(pwd)/2-phylowgs/phylowgs"
 multievolve="${phylowgs_dir}/multievolve.py"
 write_results="${phylowgs_dir}/write_results.py"
+
+# Print paths for debugging
+echo "Input directory: ${input_dir}"
+echo "Output directory: ${output_dir}" 
+echo "SSM file: ${ssm_file}"
+echo "CNV file: ${cnv_file}"
 
 # Run PhyloWGS
 echo "Running multievolve.py for bootstrap ${bootstrap_num} from $(pwd)"
