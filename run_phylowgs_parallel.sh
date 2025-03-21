@@ -3,7 +3,7 @@
 # Step 2: Run PhyloWGS in parallel for a timepoint
 #
 # This script:
-# 1. Submits parallel PhyloWGS jobs for a specific timepoint
+# 1. Submits parallel PhyloWGS jobs for a specific timepoint by chunking bootstrap samples
 #
 # Usage: 
 #   bash run_phylowgs_parallel.sh <timepoint_dir> [num_bootstraps] [num_chains] [chunk_size]
@@ -49,8 +49,11 @@ if [ ! -f "${TIMEPOINT_DIR}/.markers/bootstrap_complete" ]; then
     echo "Proceeding anyway, but you may encounter errors if bootstrapping is incomplete."
 fi
 
+# Create marker directories
+mkdir -p "${TIMEPOINT_DIR}/.markers/phylowgs_chunks"
+
 # Submit PhyloWGS jobs as an array
-phylowgs_job=$(sbatch \
+sbatch \
     --job-name="phy_${TIMEPOINT_NAME}" \
     --output="logs/phylowgs_${TIMEPOINT_NAME}_%A_%a.out" \
     --error="logs/phylowgs_${TIMEPOINT_NAME}_%A_%a.err" \
@@ -59,12 +62,57 @@ phylowgs_job=$(sbatch \
     --cpus-per-task=5 \
     --mem=16G \
     --time=48:00:00 \
-    --export=ALL,TIMEPOINT_DIR="${TIMEPOINT_DIR}",TIMEPOINT_NAME="${TIMEPOINT_NAME}",NUM_BOOTSTRAPS="${NUM_BOOTSTRAPS}",NUM_CHAINS="${NUM_CHAINS}",CHUNK_SIZE="${CHUNK_SIZE}" \
-    phylowgs_worker.sh)
+    --wrap="#!/bin/bash
+    set -e
+    
+    echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Starting PhyloWGS worker for ${TIMEPOINT_NAME}\"
+    echo \"Processing chunk \${SLURM_ARRAY_TASK_ID} of bootstraps\"
+    
+    # Calculate bootstrap range for this chunk
+    start_bootstrap=\$((SLURM_ARRAY_TASK_ID * ${CHUNK_SIZE} + 1))
+    end_bootstrap=\$((start_bootstrap + ${CHUNK_SIZE} - 1))
+    if [ \$end_bootstrap -gt ${NUM_BOOTSTRAPS} ]; then
+        end_bootstrap=${NUM_BOOTSTRAPS}
+    fi
+    
+    echo \"Will process bootstraps \$start_bootstrap through \$end_bootstrap\"
+    
+    # Initialize conda
+    source ~/miniconda3/bin/activate
+    conda activate phylowgs_env || {
+        echo \"Failed to activate phylowgs_env\"
+        exit 1
+    }
+    
+    # Process each bootstrap in this chunk
+    for bootstrap_num in \$(seq \$start_bootstrap \$end_bootstrap); do
+        echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Processing bootstrap \$bootstrap_num\"
+        
+        # Skip if this bootstrap's PhyloWGS is already complete
+        marker_file=\"${TIMEPOINT_DIR}/bootstrap_\${bootstrap_num}/.markers/phylowgs_complete\"
+        if [ -f \"\${marker_file}\" ]; then
+            echo \"Bootstrap \$bootstrap_num already processed, skipping\"
+            continue
+        fi
+        
+        # Create output directory
+        bootstrap_dir=\"${TIMEPOINT_DIR}/bootstrap_\${bootstrap_num}\"
+        mkdir -p \"\${bootstrap_dir}/.markers\"
+        
+        # Run PhyloWGS using the updated run_phylowgs.sh script
+        ./2-phylowgs/run_phylowgs.sh \"${TIMEPOINT_DIR}\" \${bootstrap_num} ${NUM_CHAINS}
+        
+        # Mark this bootstrap as complete
+        touch \"\${bootstrap_dir}/.markers/phylowgs_complete\"
+        echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Completed bootstrap \$bootstrap_num\"
+    done
+    
+    # Mark this chunk as complete
+    touch \"${TIMEPOINT_DIR}/.markers/phylowgs_chunks/chunk_\${SLURM_ARRAY_TASK_ID}_complete\"
+    echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] PhyloWGS worker completed chunk \${SLURM_ARRAY_TASK_ID}\"
+    "
 
-# Extract job ID
-phylowgs_job_id=$(echo $phylowgs_job | awk '{print $4}' | cut -d'.' -f1)
-echo "Submitted PhyloWGS jobs with array ID: ${phylowgs_job_id}"
-echo "Monitor with: squeue -j ${phylowgs_job_id}"
+echo "Submitted PhyloWGS jobs"
+echo "Monitor with: squeue -u $USER -n phy_${TIMEPOINT_NAME}"
 echo
 echo "Once all PhyloWGS jobs complete for all timepoints, run the post-processing script." 
