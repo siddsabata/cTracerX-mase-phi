@@ -3,7 +3,7 @@
 # Step 1: Preprocess and bootstrap
 #
 # This script:
-# 1. Runs preprocessing to create timepoint directories
+# 1. Submits a job to run preprocessing to create timepoint directories
 # 2. Submits a job to run bootstrapping on all timepoints
 #
 # Usage: 
@@ -38,21 +38,40 @@ mkdir -p "${DATA_DIR}"
 echo "Using data directory: ${DATA_DIR}"
 
 echo "==========================================================="
-echo "STEP 1A: Running initial preprocessing"
+echo "STEP 1A: Submitting preprocessing job"
 echo "==========================================================="
 
-# Activate conda environment before preprocessing
-source ~/miniconda3/bin/activate
-conda activate preprocess_env
+# Submit preprocessing job
+preprocess_job=$(sbatch \
+    --job-name=preprocess \
+    --output=logs/preprocess_%j.out \
+    --error=logs/preprocess_%j.err \
+    --partition=pool1 \
+    --cpus-per-task=5 \
+    --mem=16G \
+    --time=4:00:00 \
+    --wrap="#!/bin/bash
+    set -e
+    
+    echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Starting preprocessing\"
+    
+    # Source conda
+    source ~/miniconda3/bin/activate
+    conda activate preprocess_env
+    
+    # Run preprocessing
+    ./0-preprocess/run_preprocess.sh ${INPUT_FILE} ${DATA_DIR}
+    
+    echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Preprocessing completed\"")
 
-# Run preprocessing directly
-./0-preprocess/run_preprocess.sh ${INPUT_FILE} ${DATA_DIR}
+preprocess_job_id=$(echo ${preprocess_job} | awk '{print $4}')
+echo "Submitted preprocessing job with ID: ${preprocess_job_id}"
 
 echo "==========================================================="
 echo "STEP 1B: Submitting bootstrapping job"
 echo "==========================================================="
 
-# Submit bootstrapping job
+# Submit bootstrapping job with dependency on preprocessing
 bootstrap_job=$(sbatch \
     --job-name=bootstrap_all \
     --output=logs/bootstrap_all_%j.out \
@@ -61,6 +80,7 @@ bootstrap_job=$(sbatch \
     --cpus-per-task=5 \
     --mem=16G \
     --time=72:00:00 \
+    --dependency=afterok:${preprocess_job_id} \
     --wrap="#!/bin/bash
     set -e
     
@@ -97,4 +117,5 @@ bootstrap_job=$(sbatch \
 
 bootstrap_job_id=$(echo ${bootstrap_job} | awk '{print $4}')
 echo "Submitted bootstrap job with ID: ${bootstrap_job_id}"
-echo "Once this job completes, you can run the next script for PhyloWGS processing" 
+echo "The bootstrap job will start after preprocessing is complete (job ${preprocess_job_id})"
+echo "Monitor jobs with: squeue -j ${preprocess_job_id},${bootstrap_job_id}" 
