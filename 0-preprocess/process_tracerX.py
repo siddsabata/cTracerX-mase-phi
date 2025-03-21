@@ -49,11 +49,11 @@ def create_ssm_file(timepoint_df, output_dir):
     ssm_df = pd.DataFrame(ssm_entries)
     
     # Save SSM file
-    ssm_file = output_dir / 'ssm_data.txt'
+    ssm_file = output_dir / 'ssm.txt'
     ssm_df.to_csv(ssm_file, sep='\t', index=False)
     
     # Create empty CNV file (required by PhyloWGS)
-    cnv_file = output_dir / 'cnv_data.txt'
+    cnv_file = output_dir / 'cnv.txt'
     cnv_file.touch()
 
 def process_patient_data(patient_df, patient_id, output_dir):

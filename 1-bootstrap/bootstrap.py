@@ -113,7 +113,7 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     os.makedirs(bootstrap_dir, exist_ok=True)
     
     # Create SSM file
-    ssm_file = os.path.join(bootstrap_dir, f'ssm_data_bootstrap{bootstrap_num}.txt')
+    ssm_file = os.path.join(bootstrap_dir, f'ssm.txt')
     
     # Create phyloWGS input for this bootstrap iteration
     boot_phylowgs = []
@@ -161,7 +161,7 @@ def write_bootstrap_ssm(bootstrap_df, bootstrap_num, output_dir):
     df_boot.to_csv(ssm_file, sep='\t', index=False)
     
     # Create empty CNV file
-    cnv_file = os.path.join(bootstrap_dir, f'cnv_data_bootstrap{bootstrap_num}.txt')
+    cnv_file = os.path.join(bootstrap_dir, f'cnv.txt')
     open(cnv_file, 'w').close()
 
 def main():

@@ -55,8 +55,8 @@ for bootstrap_num in $(seq $start_bootstrap $end_bootstrap); do
     mkdir -p "${results_dir}" "${marker_dir}"
     
     # Find SSM and CNV files
-    ssm_file="${bootstrap_dir}/ssm_data.txt"
-    cnv_file="${bootstrap_dir}/cnv_data.txt"
+    ssm_file="${bootstrap_dir}/ssm.txt"
+    cnv_file="${bootstrap_dir}/cnv.txt"
     
     if [ ! -f "${ssm_file}" ]; then
         echo "ERROR: SSM file not found for bootstrap $bootstrap_num"
