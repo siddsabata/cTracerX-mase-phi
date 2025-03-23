@@ -30,7 +30,7 @@ echo "---------------------------------------"
 
 # Define input and output directories - convert to absolute paths
 input_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}")  # Input dir (absolute path)
-output_dir=$(realpath "${timepoint_dir}/bootstrap_${bootstrap_num}") # Output dir (absolute path)
+output_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}") # Output dir (absolute path)
 
 # Create output directories
 mkdir -p "${output_dir}/chains" "${output_dir}/.tmp"

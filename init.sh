@@ -41,7 +41,7 @@ chmod +x 4-markers/run_markers.sh
 chmod +x preprocess_bootstrap.sh
 chmod +x run_all_postprocessing.sh
 chmod +x run_phylowgs_parallel.sh
-chmod +x run_postprocessing.sh
+
 echo "Execute permissions set successfully."
 
 # Create conda environments from yml files
