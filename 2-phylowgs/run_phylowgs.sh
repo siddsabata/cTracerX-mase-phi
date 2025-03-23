@@ -33,7 +33,7 @@ input_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}")  # Input dir 
 output_dir=$(realpath "${timepoint_dir}/bootstrap_${bootstrap_num}") # Output dir (absolute path)
 
 # Create output directories
-mkdir -p "${output_dir}/chains" "${output_dir}/tmp"
+mkdir -p "${output_dir}/chains" "${output_dir}/.tmp"
 
 # Find SSM and CNV files
 ssm_file="${input_dir}/ssm.txt"
@@ -69,7 +69,7 @@ python2 "${multievolve}" --num-chains "${num_chains}" \
     --ssms "${ssm_file}" \
     --cnvs "${cnv_file}" \
     --output-dir "${output_dir}/chains" \
-    --tmp-dir "${output_dir}/tmp"
+    --tmp-dir "${output_dir}/.tmp"
 
 # Process results with write_results.py
 echo "Running write_results.py for bootstrap ${bootstrap_num}"
