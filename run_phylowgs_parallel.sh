@@ -88,22 +88,22 @@ sbatch \
     for bootstrap_num in \$(seq \$start_bootstrap \$end_bootstrap); do
         echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Processing bootstrap \$bootstrap_num\"
         
+        # Create marker directory
+        bootstrap_dir=\"${TIMEPOINT_DIR}/bootstrap\${bootstrap_num}\"
+        marker_dir=\"\${bootstrap_dir}/.markers\"
+        mkdir -p \"\${marker_dir}\"
+        
         # Skip if this bootstrap's PhyloWGS is already complete
-        marker_file=\"${TIMEPOINT_DIR}/bootstrap_\${bootstrap_num}/.markers/phylowgs_complete\"
-        if [ -f \"\${marker_file}\" ]; then
+        if [ -f \"\${marker_dir}/phylowgs_complete\" ]; then
             echo \"Bootstrap \$bootstrap_num already processed, skipping\"
             continue
         fi
-        
-        # Create output directory
-        bootstrap_dir=\"${TIMEPOINT_DIR}/bootstrap_\${bootstrap_num}\"
-        mkdir -p \"\${bootstrap_dir}/.markers\"
         
         # Run PhyloWGS using the updated run_phylowgs.sh script
         ./2-phylowgs/run_phylowgs.sh \"${TIMEPOINT_DIR}\" \${bootstrap_num} ${NUM_CHAINS}
         
         # Mark this bootstrap as complete
-        touch \"\${bootstrap_dir}/.markers/phylowgs_complete\"
+        touch \"\${marker_dir}/phylowgs_complete\"
         echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] Completed bootstrap \$bootstrap_num\"
     done
     

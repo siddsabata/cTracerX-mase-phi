@@ -28,16 +28,15 @@ echo "Bootstrap: ${bootstrap_num}"
 echo "Number of chains: ${num_chains}"
 echo "---------------------------------------"
 
-# Define input and output directories - convert to absolute paths
-input_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}")  # Input dir (absolute path)
-output_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}") # Output dir (absolute path)
+# Define directories - we're using the same directory for input and output
+bootstrap_dir=$(realpath "${timepoint_dir}/bootstrap${bootstrap_num}")
 
 # Create output directories
-mkdir -p "${output_dir}/chains" "${output_dir}/.tmp"
+mkdir -p "${bootstrap_dir}/chains" "${bootstrap_dir}/.tmp"
 
 # Find SSM and CNV files
-ssm_file="${input_dir}/ssm.txt"
-cnv_file="${input_dir}/cnv.txt"
+ssm_file="${bootstrap_dir}/ssm.txt"
+cnv_file="${bootstrap_dir}/cnv.txt"
 
 # Check if SSM file exists
 if [ ! -f "${ssm_file}" ]; then
@@ -57,8 +56,7 @@ multievolve="${phylowgs_dir}/multievolve.py"
 write_results="${phylowgs_dir}/write_results.py"
 
 # Print paths for debugging
-echo "Input directory: ${input_dir}"
-echo "Output directory: ${output_dir}" 
+echo "Bootstrap directory: ${bootstrap_dir}"
 echo "SSM file: ${ssm_file}"
 echo "CNV file: ${cnv_file}"
 
@@ -68,16 +66,82 @@ cd "${phylowgs_dir}"
 python2 "${multievolve}" --num-chains "${num_chains}" \
     --ssms "${ssm_file}" \
     --cnvs "${cnv_file}" \
-    --output-dir "${output_dir}/chains" \
-    --tmp-dir "${output_dir}/.tmp"
+    --output-dir "${bootstrap_dir}/chains" \
+    --tmp-dir "${bootstrap_dir}/.tmp"
 
 # Process results with write_results.py
 echo "Running write_results.py for bootstrap ${bootstrap_num}"
-python2 "${write_results}" --include-ssm-names result \
-    "${output_dir}/chains/trees.zip" \
-    "${output_dir}/result.summ.json.gz" \
-    "${output_dir}/result.muts.json.gz" \
-    "${output_dir}/result.mutass.zip"
+
+# Check multiple potential locations for trees.zip
+TREES_ZIP=""
+POTENTIAL_LOCATIONS=(
+    "${bootstrap_dir}/chains/trees.zip"
+    "${bootstrap_dir}/chains/merged/trees.zip"
+)
+
+for location in "${POTENTIAL_LOCATIONS[@]}"; do
+    if [ -f "$location" ]; then
+        TREES_ZIP="$location"
+        echo "Found trees.zip at: $TREES_ZIP"
+        break
+    fi
+done
+
+# If trees.zip is found, process it
+if [ -n "$TREES_ZIP" ]; then
+    python2 "${write_results}" --include-ssm-names result \
+        "$TREES_ZIP" \
+        "${bootstrap_dir}/result.summ.json.gz" \
+        "${bootstrap_dir}/result.muts.json.gz" \
+        "${bootstrap_dir}/result.mutass.zip"
+    echo "Results processed successfully"
+else
+    echo "ERROR: trees.zip not found in any expected location"
+    echo "Contents of chains directory:"
+    find "${bootstrap_dir}/chains/" -type f | sort
+    
+    # Check if multievolve.py completed successfully
+    echo "Checking for error logs:"
+    find "${bootstrap_dir}/.tmp/" -name "*.stderr" -exec cat {} \;
+    
+    # Try running with explicit chain inclusion factor
+    echo "Attempting to manually merge chains..."
+    python2 "${multievolve}" --num-chains 0 \
+        --ssms "${ssm_file}" \
+        --cnvs "${cnv_file}" \
+        --output-dir "${bootstrap_dir}/chains" \
+        --tmp-dir "${bootstrap_dir}/.tmp" \
+        --chain-inclusion-factor inf
+        
+    # Check again for trees.zip
+    if [ -f "${bootstrap_dir}/chains/trees.zip" ] || [ -f "${bootstrap_dir}/chains/merged/trees.zip" ]; then
+        echo "Manual chain merging successful, trees.zip created"
+        # Re-run the check for trees.zip
+        for location in "${POTENTIAL_LOCATIONS[@]}"; do
+            if [ -f "$location" ]; then
+                TREES_ZIP="$location"
+                echo "Found trees.zip at: $TREES_ZIP after manual merge"
+                break
+            fi
+        done
+        
+        # Process the trees.zip if found
+        if [ -n "$TREES_ZIP" ]; then
+            python2 "${write_results}" --include-ssm-names result \
+                "$TREES_ZIP" \
+                "${bootstrap_dir}/result.summ.json.gz" \
+                "${bootstrap_dir}/result.muts.json.gz" \
+                "${bootstrap_dir}/result.mutass.zip"
+            echo "Results processed successfully after manual merge"
+        else
+            echo "ERROR: trees.zip still not found after manual merge attempt"
+            exit 1
+        fi
+    else
+        echo "ERROR: Failed to create trees.zip even after manual merge attempt"
+        exit 1
+    fi
+fi
 
 # Return to original directory
 cd - > /dev/null
